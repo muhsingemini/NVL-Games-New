@@ -1,0 +1,3399 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NVL Games — Canlı PUBG Mobile Turnuva Platformu</title>
+<link id="dynamicFavicon" rel="icon" type="image/svg+xml" href="">
+<style>
+  :root {
+    --bg-main: #0F131A;
+    --bg-card: #151A23;
+    --bg-elevated: #1B212D;
+    --bg-input: #10141C;
+    --border: #232A38;
+    --border-soft: rgba(255,255,255,0.07);
+    --text: #F3F5F8;
+    --text-muted: #8E98AA;
+    --accent: #E11D48;
+    --accent-hover: #BE123C;
+    --accent-soft: rgba(225, 29, 72, 0.14);
+    --success: #10B981;
+    --success-soft: rgba(16, 185, 129, 0.14);
+    --warning: #F59E0B;
+    --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    --drawer-backdrop: rgba(4, 6, 10, 0.68);
+  }
+
+  [data-theme="light"] {
+    --bg-main: #F4F6FA;
+    --bg-card: #FFFFFF;
+    --bg-elevated: #EEF2F7;
+    --bg-input: #F8FAFC;
+    --border: #DCE2EC;
+    --border-soft: rgba(15, 23, 42, 0.08);
+    --text: #0F172A;
+    --text-muted: #5A657A;
+    --accent: #E11D48;
+    --accent-hover: #BE123C;
+    --accent-soft: rgba(225, 29, 72, 0.10);
+    --success: #059669;
+    --success-soft: rgba(5, 150, 105, 0.12);
+    --warning: #D97706;
+    --shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    --drawer-backdrop: rgba(15, 23, 42, 0.42);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg-main);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    overflow-x: hidden;
+  }
+
+  button, input, select, textarea { font-family: inherit; color: inherit; }
+  button { cursor: pointer; border: none; background: transparent; }
+  .container { max-width: 1260px; margin: 0 auto; padding: 0 20px; }
+
+  /* NAVBAR */
+  .navbar {
+    position: sticky; top: 0; z-index: 60; height: 68px;
+    background: var(--bg-card); border-bottom: 1px solid var(--border);
+  }
+  .navbar-inner {
+    height: 100%; max-width: 1360px; margin: 0 auto; padding: 0 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+  .brand-emblem-box {
+    width: 42px; height: 38px; border-radius: 9px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    display: grid; place-items: center; overflow: hidden; flex-shrink: 0;
+  }
+  .brand-emblem-img {
+    width: 100%; height: 100%; object-fit: contain; display: block;
+  }
+  .live-dot-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+    background: var(--success-soft); color: var(--success); border: 1px solid rgba(16,185,129,0.35);
+  }
+  .live-dot-pulse {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+    animation: livePulse 1.4s infinite ease-in-out;
+  }
+  @keyframes livePulse { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.4; transform:scale(0.8); } }
+
+  .nav-links { display: flex; align-items: center; gap: 4px; }
+  .nav-link { padding: 8px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--text-muted); }
+  .nav-link:hover, .nav-link.active { color: var(--text); background: var(--bg-elevated); }
+  .nav-right { display: flex; align-items: center; gap: 8px; }
+
+  .btn {
+    padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.2s ease;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+  .btn-secondary { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text); }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--text-muted); }
+  .btn-success { background: var(--success-soft); color: var(--success); border: 1px solid rgba(16,185,129,0.35); }
+
+  .balance-pill {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px;
+    padding: 5px 12px; display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15;
+  }
+  .balance-pill:hover { border-color: var(--accent); }
+  .balance-pill .top { font-size: 11px; color: var(--accent); font-weight: 800; }
+  .balance-pill .val { font-size: 13.5px; font-weight: 800; }
+
+  .icon-btn {
+    position: relative; width: 38px; height: 38px; border-radius: 10px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    display: grid; place-items: center; font-size: 16px;
+  }
+  .icon-btn:hover { border-color: var(--accent); }
+  .icon-btn svg {
+    width: 18px; height: 18px; stroke: var(--text); fill: none;
+    stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .icon-btn.bell-btn svg { stroke: #F87171; }
+  .badge-count {
+    position: absolute; top: -6px; right: -6px; min-width: 20px; height: 18px; padding: 0 5px;
+    border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800;
+    display: none; align-items: center; justify-content: center;
+  }
+  .badge-count.show { display: inline-flex; }
+
+  .page-section { padding: 26px 0 52px; }
+  .section-block { margin-top: 32px; }
+  .eyebrow { font-size: 11.5px; font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  .section-title { font-size: 24px; font-weight: 800; }
+  .section-sub { color: var(--text-muted); font-size: 13.5px; margin-top: 3px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+  .empty-box { background: var(--bg-card); border: 1px dashed var(--border); border-radius: 14px; padding: 26px 18px; text-align: center; color: var(--text-muted); }
+
+  .pill {
+    padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+  }
+  .pill.active, .pill:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .tag-live {
+    background: rgba(225,29,72,0.22); color: #fda4af; border: 1px solid rgba(225,29,72,0.45);
+    padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase;
+  }
+
+  /* HOME STATS & TEAM LEADERBOARD */
+  .home-stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px;
+  }
+  .home-stat-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .home-stat-card strong { font-size: 26px; font-weight: 900; color: var(--accent); }
+  .home-stat-card span { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+  .lb-team-row {
+    display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: 11px; background: var(--bg-elevated);
+    border: 1px solid var(--border-soft); margin-top: 9px;
+  }
+  .lb-team-rank { font-weight: 900; font-size: 16px; color: var(--accent); }
+  .lb-team-pts { text-align: right; }
+  .lb-team-pts strong { font-size: 18px; font-weight: 900; display: block; color: var(--text); }
+  .lb-team-pts small { font-size: 11.5px; color: var(--text-muted); }
+
+  /* TOURNAMENT CARDS */
+  .tour-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; }
+  .tour-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .tour-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .tour-banner {
+    padding: 16px 18px; background: radial-gradient(circle at top right, rgba(225,29,72,0.38), rgba(15,19,26,0.96));
+    border-bottom: 1px solid var(--border); min-height: 120px; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .tour-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .tour-schedule-box {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    background: var(--bg-elevated); border-radius: 10px; padding: 10px;
+  }
+  .tour-schedule-box small { display: block; font-size: 11px; color: var(--text-muted); }
+  .tour-money-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 6px; border-top: 1px solid var(--border-soft); }
+  .tour-money-row small { display: block; font-size: 11.5px; color: var(--text-muted); }
+  .progress-track { height: 6px; background: var(--bg-elevated); border-radius: 999px; overflow: hidden; margin-top: 6px; }
+  .progress-fill { height: 100%; background: var(--accent); }
+
+  /* TURNUVA MERKEZİ */
+  .tm-hero {
+    background: linear-gradient(135deg, rgba(127, 29, 45, 0.55), rgba(21, 26, 35, 0.96));
+    border: 1px solid rgba(225, 29, 72, 0.35);
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .tm-hero-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .tm-hero-main { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .tm-trophy-box {
+    width: 64px; height: 64px; border-radius: 14px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12); display: grid; place-items: center; font-size: 26px;
+  }
+  .tm-hero-bottom {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.09); font-size: 13px;
+  }
+
+  .tm-tabs-bar {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    background: var(--bg-card); border: 1px solid var(--border);
+    padding: 8px; border-radius: 14px; margin-bottom: 20px;
+  }
+  .tm-tab {
+    padding: 10px 15px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tm-tab:hover { color: var(--text); background: var(--bg-elevated); }
+  .tm-tab.active { background: var(--accent-soft); color: #fda4af; border: 1px solid rgba(225,29,72,0.4); }
+
+  .tm-quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+  .tm-quick-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px;
+    padding: 16px; text-align: left; transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .tm-quick-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .tm-quick-card small { display: block; color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+
+  .team-logo-img {
+    width: 44px; height: 44px; border-radius: 11px; object-fit: cover;
+    background: var(--bg-elevated); border: 1px solid var(--border); display: inline-grid; place-items: center;
+    font-weight: 900; font-size: 15px; color: var(--accent); flex-shrink: 0;
+  }
+
+  /* OBS HUD */
+  .obs-screen {
+    min-height: 100vh; background: transparent; color: #fff;
+    padding: 28px; position: relative; font-family: Inter, sans-serif;
+  }
+  .obs-right-board {
+    position: fixed; top: 28px; right: 28px; width: 430px;
+    background: rgba(11, 15, 23, 0.90); border: 1px solid rgba(225, 29, 72, 0.6);
+    border-radius: 14px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,0.65);
+  }
+  .obs-board-head {
+    background: linear-gradient(90deg, #E11D48, #9F1239);
+    padding: 11px 16px; font-weight: 900; font-size: 13px; letter-spacing: 0.7px;
+    display: flex; justify-content: space-between;
+  }
+  .obs-row {
+    display: grid; grid-template-columns: 38px 1fr 56px 56px 64px;
+    align-items: center; padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 13px; font-weight: 700;
+  }
+  .obs-left-match {
+    position: fixed; bottom: 28px; left: 28px;
+    background: rgba(11, 15, 23, 0.92); border: 1px solid rgba(255,255,255,0.16);
+    border-left: 4px solid #E11D48; border-radius: 12px; padding: 12px 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  /* BADGES */
+  .badges-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .badge-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 18px; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .badge-card-top { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .badge-num { background: var(--bg-elevated); border: 1px solid var(--border); padding: 3px 8px; border-radius: 7px; font-size: 11px; font-weight: 800; }
+  .badge-emblem-wrap { height: 110px; display: grid; place-items: center; margin: 8px 0; }
+  .badge-req { border-top: 1px solid var(--border-soft); padding-top: 10px; font-size: 12px; color: var(--text-muted); display: flex; gap: 6px; }
+
+  /* WALLET / ÖDEMELERİM */
+  .wallet-tabs {
+    display: flex; gap: 8px; flex-wrap: wrap; background: var(--bg-card);
+    border: 1px solid var(--border); padding: 8px; border-radius: 12px; margin-bottom: 18px;
+  }
+  .wallet-tab-btn { padding: 9px 15px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--text-muted); }
+  .wallet-tab-btn.active { background: var(--accent); color: #fff; }
+  .wallet-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; align-items: start; }
+  .amount-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0 16px; }
+  .amount-btn { padding: 12px; border-radius: 10px; background: var(--bg-elevated); border: 1px solid var(--border); font-weight: 800; font-size: 14px; }
+  .amount-btn.active, .amount-btn:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .iban-box { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; background: var(--bg-elevated); }
+
+  /* COMMON UI */
+  .two-col { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; margin-top: 16px; }
+  .chat-box, .lfg-card { padding: 18px; }
+  .chat-messages { min-height: 190px; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; margin: 12px 0; }
+  .msg-row { background: var(--bg-elevated); border-radius: 10px; padding: 10px 12px; }
+  .msg-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+  .msg-author { font-weight: 700; color: var(--accent); }
+  .msg-time { color: var(--text-muted); }
+  .chat-form { display: flex; gap: 8px; }
+
+  .input, .select, .textarea {
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; font-size: 13.5px;
+  }
+  .input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--accent); }
+  .input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .lfg-list { display: flex; flex-direction: column; gap: 9px; }
+  .lfg-item {
+    background: var(--bg-elevated); border-radius: 10px; padding: 11px 13px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .lfg-item small { color: var(--text-muted); font-size: 12px; display: block; }
+
+  .score-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+  .score-table th, .score-table td { padding: 11px 12px; border-bottom: 1px solid var(--border-soft); text-align: left; }
+  .score-table th { color: var(--text-muted); font-size: 11.5px; text-transform: uppercase; }
+
+  @keyframes idAlertBlink {
+    0%, 100% { border-color: #E11D48; background: rgba(225, 29, 72, 0.16); }
+    50% { border-color: #F59E0B; background: rgba(245, 158, 11, 0.18); }
+  }
+  .blink-id-alert { border: 1.5px solid #E11D48; border-radius: 12px; padding: 12px 14px; animation: idAlertBlink 1.3s infinite ease-in-out; }
+
+  .link-btn { color: var(--text); font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); }
+  .link-btn:hover { color: var(--accent); }
+
+  .drawer-backdrop { position: fixed; inset: 0; background: var(--drawer-backdrop); z-index: 90; display: none; justify-content: flex-end; }
+  .drawer-backdrop.open { display: flex; }
+  .drawer-panel { width: 100%; max-width: 380px; height: 100%; background: var(--bg-card); border-left: 1px solid var(--border); padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .drawer-btn { width: 100%; padding: 12px 14px; border-radius: 11px; background: var(--bg-elevated); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; }
+  .drawer-btn:hover { border-color: var(--accent); }
+  .drawer-btn.highlight { background: var(--accent-soft); border-color: rgba(225,29,72,0.45); color: var(--accent); }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(4, 6, 10, 0.72); z-index: 110; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .modal-backdrop.open { display: flex; }
+  .modal-card { width: 100%; max-width: 520px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 22px; max-height: 90vh; overflow-y: auto; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-muted); }
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--bg-elevated); border: 1px solid var(--accent); padding: 11px 18px;
+    border-radius: 11px; font-size: 13.5px; font-weight: 600; z-index: 140; opacity: 0; pointer-events: none; transition: all 0.22s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* SETTINGS PAGE */
+  .settings-top-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+  }
+  .settings-grid-wrap {
+    display: grid; grid-template-columns: 265px 1fr; gap: 22px; align-items: start;
+  }
+  .settings-sidebar-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px; position: sticky; top: 86px;
+  }
+  .settings-search-wrap { position: relative; margin: 10px 0 12px; }
+  .settings-search-wrap svg {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; stroke: var(--text-muted); fill: none; stroke-width: 2;
+  }
+  .settings-search-wrap input { padding-left: 33px; border-radius: 10px; font-size: 13px; }
+  .settings-nav-item {
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+    color: var(--text-muted); text-align: left; transition: all 0.18s ease; margin-bottom: 3px;
+  }
+  .settings-nav-item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.9; flex-shrink: 0; }
+  .settings-nav-item:hover { background: var(--bg-elevated); color: var(--text); }
+  .settings-nav-item.active { background: rgba(225, 29, 72, 0.16); color: #FB7185; }
+  .settings-acc-list { display: flex; flex-direction: column; gap: 12px; }
+  .settings-acc-item {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 15px;
+    overflow: hidden; transition: border-color 0.2s ease;
+  }
+  .settings-acc-item.open, .settings-acc-item:hover { border-color: rgba(225, 29, 72, 0.45); }
+  .settings-acc-trigger {
+    width: 100%; padding: 18px 20px; display: flex; align-items: center;
+    justify-content: space-between; gap: 14px; text-align: left;
+  }
+  .settings-acc-left { display: flex; align-items: center; gap: 14px; }
+  .settings-icon-box {
+    width: 42px; height: 42px; border-radius: 11px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    display: grid; place-items: center; flex-shrink: 0;
+  }
+  .settings-icon-box svg { width: 18px; height: 18px; stroke: var(--text-muted); fill: none; stroke-width: 1.9; }
+  .settings-acc-title { font-size: 15.5px; font-weight: 800; display: block; }
+  .settings-acc-sub { font-size: 12.5px; color: var(--text-muted); display: block; margin-top: 2px; }
+  .settings-acc-body { padding: 18px 20px 20px; border-top: 1px solid var(--border-soft); background: rgba(0, 0, 0, 0.12); }
+  .search-hl { background: #F43F5E; color: #fff; padding: 1px 5px; border-radius: 4px; font-weight: 800; }
+
+  .subpage-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .footer { border-top: 1px solid var(--border); padding: 22px 20px; margin-top: 40px; background: var(--bg-card); }
+  .footer-inner { max-width: 1260px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--text-muted); }
+
+  @media (max-width: 960px) {
+    .badges-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 860px) {
+    .nav-links { display: none; }
+    .tm-quick-grid, .two-col, .form-grid-2, .settings-grid-wrap, .wallet-grid, .badges-grid, .home-stats-grid { grid-template-columns: 1fr; }
+    .settings-sidebar-card { position: static; }
+    .amount-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div id="shellWrapper"></div>
+
+<div class="drawer-backdrop" id="exploreBackdrop" onclick="if(event.target.id==='exploreBackdrop') closeExploreDrawer()">
+  <aside class="drawer-panel" onclick="event.stopPropagation()">
+    <div class="modal-head" style="padding-bottom:10px; border-bottom:1px solid var(--border);">
+      <div>
+        <div class="eyebrow" style="margin-bottom:0;">NVL GAMES</div>
+        <h3 style="font-size:20px; font-weight:800;">Keşfet</h3>
+      </div>
+      <button class="icon-btn" onclick="closeExploreDrawer()">✕</button>
+    </div>
+    <div id="drawerDynamicContent" style="display:flex; flex-direction:column; gap:10px;"></div>
+  </aside>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop" onclick="if(event.target.id==='modalBackdrop') closeModal()">
+  <div class="modal-card" id="modalCard" onclick="event.stopPropagation()"></div>
+</div>
+
+<div class="toast" id="toastBox"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const STORAGE_KEY = 'nvl_games_realtime_v8';
+const SESSION_KEY = 'nvl_games_session_v8';
+const CHANNEL_NAME = 'nvl_games_realtime_bus_v8';
+const ADMIN_CREDS = { user: 'admin', pass: 'nvl2026' };
+
+/* DEFAULT NVL WINGED SHIELD SVG DATA URI (MATCHING UPLOADED NVL EMBLEM) */
+const DEFAULT_NVL_SHIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 140" width="240" height="140">
+  <defs>
+    <linearGradient id="wingMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#D1D5DB"/>
+      <stop offset="100%" stop-color="#6B7280"/>
+    </linearGradient>
+    <linearGradient id="shieldCore" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#272A30"/>
+      <stop offset="100%" stop-color="#0B0D10"/>
+    </linearGradient>
+  </defs>
+  <!-- Left sharp wing -->
+  <polygon points="108,34 12,8 52,35 28,39 74,56 54,60 106,74" fill="url(#wingMetal)" stroke="#090B0E" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Right sharp wing -->
+  <polygon points="132,34 228,8 188,35 212,39 166,56 186,60 134,74" fill="url(#wingMetal)" stroke="#090B0E" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Outer shield shell -->
+  <polygon points="120,16 164,34 156,88 120,130 84,88 76,34" fill="#0B0D10" stroke="url(#wingMetal)" stroke-width="4" stroke-linejoin="round"/>
+  <polygon points="120,23 156,38 149,84 120,121 91,84 84,38" fill="url(#shieldCore)"/>
+  <!-- Bold NVL monogram -->
+  <path d="M92,46 L101,46 L112,77 L112,46 L119,46 L119,92 L111,92 L99,61 L99,92 L92,92 Z" fill="url(#wingMetal)" stroke="#090B0E" stroke-width="1.5"/>
+  <path d="M122,46 L130,46 L137,79 L144,46 L152,46 L141,92 L133,92 Z" fill="url(#wingMetal)" stroke="#090B0E" stroke-width="1.5"/>
+  <path d="M126,95 L146,95 L144,102 L126,102 Z" fill="url(#wingMetal)"/>
+</svg>`;
+
+const DEFAULT_NVL_LOGO_DATA_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(DEFAULT_NVL_SHIELD_SVG);
+
+const USER_BADGE_CATALOG = [
+  { id: 'kurucu', cat: 'Kurucu', num: '01', title: 'NVL Kurucu', desc: 'Platformun kurucu hesabına özel en üst seviye rozet.', req: 'Yalnızca NVL Games tarafından tanımlanan Kurucu hesabında bulunur.', primary: '#F59E0B', secondary: '#451A1A', crown: true, plus: false, check: () => false },
+  { id: 'yonetici', cat: 'Yönetim', num: '02', title: 'NVL Yönetici', desc: 'Platform yönetiminde görev alan yetkili hesap rozeti.', req: 'NVL Kurucusu tarafından yönetici yetkisi verilen hesaplara tanımlanır.', primary: '#D97706', secondary: '#2E1E12', crown: true, plus: false, check: () => false },
+  { id: 'moderator', cat: 'Moderasyon', num: '03', title: 'NVL Moderatör', desc: 'Topluluk güvenliği ve forum moderasyonu için yetkili hesap rozeti.', req: 'NVL yönetimi tarafından moderatör yetkisi verilen hesaplara tanımlanır.', primary: '#8B5CF6', secondary: '#1F1836', crown: false, plus: false, check: () => false },
+  { id: 'manager', cat: 'Organizasyon', num: '04', title: 'NVL Manager', desc: 'Onaylı menajerlik davetleriyle takımları ve turnuva başvurularını yönetebilen yetkili rozeti.', req: 'Yalnızca NVL yönetimi tarafından manuel olarak tanımlanır.', primary: '#EAB308', secondary: '#272112', crown: false, plus: false, check: () => false },
+  { id: 'organizatör', cat: 'Organizasyon', num: '05', title: 'NVL Organizatör', desc: 'Topluluk ve turnuva yönetiminde deneyimli yetkili organizatör rozeti.', req: 'Admin panelinden turnuva açma yetkisi verilen hesaplara tanımlanır.', primary: '#EAB308', secondary: '#272112', crown: false, plus: false, check: (u) => !!u.canCreateTournament },
+  { id: 'efsane', cat: 'Üyelik', num: '06', title: 'NVL Efsanesi', desc: 'Sezon zirvesi ve yüksek bakiye/katılım başarısına sahip efsanevi kullanıcı rozeti.', req: 'Bakiyesi 500 V ve üzerine ulaşan veya yönetim tarafından seçilen hesaplara verilir.', primary: '#EF4444', secondary: '#3B1219', crown: true, plus: false, check: (u) => Number(u.balance || 0) >= 500 },
+  { id: 'elit', cat: 'Üyelik', num: '07', title: 'NVL Elit Üye', desc: 'Turnuva katılımında istikrar sağlayan deneyimli oyuncu rozeti.', req: 'En az 1 onaylı turnuvada slotta yer alan takım oyuncularına verilir.', primary: '#3B82F6', secondary: '#12223E', crown: false, plus: false, check: (u, st) => st.tournaments.some(t => (t.joinedTeams || []).some(tid => {
+    const tm = st.teams.find(x => x.id === tid);
+    return tm && (tm.ownerUsername === u.username || (tm.mainPlayers || []).some(p => p.username === u.username));
+  })) },
+  { id: 'uye', cat: 'Üyelik', num: '08', title: 'NVL Üye', desc: 'NVL Games topluluğunun standart kayıtlı kullanıcı rozeti.', req: 'Tüm aktif NVL Games üyelerine verilir.', primary: '#94A3B8', secondary: '#1E2530', crown: false, plus: false, check: () => true }
+];
+
+const TEAM_BADGE_CATALOG = [
+  { cat: 'Takım kademesi', num: '01', title: 'NVL Efsane Takım', desc: 'NVL Games takım sıralamasının zirvesini temsil eder.', req: 'Takım sıralamasında 1. olan takıma verilir.', primary: '#EF4444', secondary: '#3B1219', crown: true, plus: false },
+  { cat: 'Takım kademesi', num: '02', title: 'NVL Şampiyon Takım', desc: 'Sezon sıralamasında podyuma giren güçlü takımlar.', req: 'Takım sıralamasında 2. veya 3. olmak gerekir.', primary: '#F59E0B', secondary: '#332110', crown: true, plus: false },
+  { cat: 'Takım kademesi', num: '03', title: 'NVL Elit Takım', desc: 'Yüksek katılım geçmişine sahip deneyimli takım.', req: 'Başarıyla tamamlanan 20 turnuva gerekir.', primary: '#3B82F6', secondary: '#12223E', crown: false, plus: false },
+  { cat: 'Takım kademesi', num: '04', title: 'NVL Doğrulanmış Takım', desc: 'Aktif kadrosu ve turnuva geçmişi bulunan güvenilir takım.', req: 'Başarıyla tamamlanan en az 1 turnuva gerekir.', primary: '#EAB308', secondary: '#272112', crown: false, plus: false },
+  { cat: 'Takım kademesi', num: '05', title: 'NVL Yeni Takım', desc: 'NVL Games üzerinde yeni kurulan takım rozeti.', req: 'Yeni kurulan tüm aktif takımlara verilir.', primary: '#94A3B8', secondary: '#1E2530', crown: false, plus: false },
+  { cat: 'Ek rozet', num: 'VIP', title: 'NVL VIP Takım', desc: 'Altın ve yakut VIP rozeti; özel kontenjan ayrıcalıkları aktif.', req: 'VIP üyelik ayrıcalıkları kapsamında tanımlanır.', primary: '#F59E0B', secondary: '#3E151B', crown: true, plus: false },
+  { cat: 'Ek rozet', num: 'VIP+ · AKTİF', title: 'NVL VIP+ Takım', desc: 'Platin kalkan ve yakut artı işareti. Gelişmiş VIP+ takım ayrıcalıkları.', req: 'VIP+ yönetim panelinden tanımlanır.', primary: '#CBD5E1', secondary: '#2B1319', crown: true, plus: true }
+];
+
+const DEFAULT_SHARED_STATE = {
+  siteLogoUrl: DEFAULT_NVL_LOGO_DATA_URL,
+  users: [],
+  announcements: [],
+  tournaments: [],
+  tournamentRosters: {},
+  idChangeLogs: [],
+  forumMessages: [],
+  forumVoiceChannels: [
+    { id: 'vc1', name: 'Ses Kanalı #1', users: [] },
+    { id: 'vc2', name: 'Ses Kanalı #2', users: [] },
+    { id: 'vc3', name: 'Ses Kanalı #3', users: [] },
+    { id: 'vc4', name: 'Ses Kanalı #4', users: [] },
+    { id: 'vc5', name: 'Ses Kanalı #5', users: [] }
+  ],
+  teams: [],
+  teamChats: {},
+  tournamentChats: {},
+  notifications: {},
+  walletRequests: [],
+  transactions: [],
+  dmMessages: [],
+  updatedAt: 0
+};
+
+function loadLocalShared() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return structuredClone(DEFAULT_SHARED_STATE);
+    const parsed = JSON.parse(raw);
+    return {
+      ...structuredClone(DEFAULT_SHARED_STATE),
+      ...parsed,
+      siteLogoUrl: parsed.siteLogoUrl || DEFAULT_NVL_LOGO_DATA_URL
+    };
+  } catch {
+    return structuredClone(DEFAULT_SHARED_STATE);
+  }
+}
+
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
+    if (!raw) return { theme: 'dark', currentUsername: null, adminUnlocked: false, activeVoiceChannel: null, micEnabled: true, speakerEnabled: true };
+    return JSON.parse(raw);
+  } catch {
+    return { theme: 'dark', currentUsername: null, adminUnlocked: false, activeVoiceChannel: null, micEnabled: true, speakerEnabled: true };
+  }
+}
+
+let shared = loadLocalShared();
+let session = loadSession();
+let state = buildMergedState();
+
+let activeView = 'home';
+let activeTournamentPageId = null;
+let activeTournamentTab = 'overview';
+let selectedOrganizerTourId = null;
+let selectedOrganizerMatchNo = 1;
+let selectedTeamTourId = null;
+let selectedDmPeer = null;
+let selectedWalletTab = 'deposit';
+let selectedWalletAmount = 100;
+let settingsSearchQuery = '';
+let activeSettingsNavId = 'profile';
+let openSettingsCardIds = new Set(['profile']);
+
+let firestoreDocRef = null;
+let syncModeLabel = 'Canlı Senkronizasyon';
+const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL_NAME) : null;
+
+function buildMergedState() {
+  const curUser = session.currentUsername
+    ? (shared.users || []).find(u => u.username === session.currentUsername) || null
+    : null;
+  return {
+    ...shared,
+    siteLogoUrl: shared.siteLogoUrl || DEFAULT_NVL_LOGO_DATA_URL,
+    theme: session.theme || 'dark',
+    currentUser: curUser ? { ...curUser } : null,
+    adminUnlocked: !!session.adminUnlocked,
+    activeVoiceChannel: session.activeVoiceChannel || null,
+    micEnabled: session.micEnabled !== false,
+    speakerEnabled: session.speakerEnabled !== false
+  };
+}
+
+function applyFaviconLogo(logoSrc) {
+  const fav = document.getElementById('dynamicFavicon');
+  if (fav) {
+    fav.href = logoSrc || DEFAULT_NVL_LOGO_DATA_URL;
+  }
+}
+
+function renderSiteBrandEmblem(sizeW = 42, sizeH = 38) {
+  const src = state.siteLogoUrl || DEFAULT_NVL_LOGO_DATA_URL;
+  return `<span class="brand-emblem-box" style="width:${sizeW}px;height:${sizeH}px;"><img class="brand-emblem-img" src="${escapeAttr(src)}" alt="NVL Games Logo"></span>`;
+}
+
+function saveSession() {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch {}
+  state = buildMergedState();
+}
+
+function applyIncomingShared(nextData, shouldRender = true) {
+  if (!nextData || typeof nextData !== 'object') return;
+  shared = {
+    ...structuredClone(DEFAULT_SHARED_STATE),
+    ...nextData,
+    siteLogoUrl: nextData.siteLogoUrl || DEFAULT_NVL_LOGO_DATA_URL,
+    forumVoiceChannels: Array.isArray(nextData.forumVoiceChannels) && nextData.forumVoiceChannels.length === 5
+      ? nextData.forumVoiceChannels
+      : structuredClone(DEFAULT_SHARED_STATE.forumVoiceChannels)
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(shared));
+  } catch {}
+  state = buildMergedState();
+  applyFaviconLogo(state.siteLogoUrl);
+  if (shouldRender) renderAll(true);
+}
+
+async function commitSharedMutation(mutatorFn) {
+  const draft = structuredClone(shared);
+  mutatorFn(draft);
+  draft.updatedAt = Date.now();
+  applyIncomingShared(draft, true);
+
+  if (bc) {
+    try { bc.postMessage({ type: 'SYNC_STATE', payload: draft }); } catch {}
+  }
+
+  if (firestoreDocRef) {
+    try {
+      await setDoc(firestoreDocRef, draft);
+    } catch (err) {
+      console.warn('Firestore yazma hatası:', err);
+    }
+  }
+}
+
+if (bc) {
+  bc.onmessage = (ev) => {
+    if (ev.data?.type === 'SYNC_STATE' && ev.data.payload) {
+      applyIncomingShared(ev.data.payload, true);
+    }
+  };
+}
+
+window.addEventListener('storage', (ev) => {
+  if (ev.key === STORAGE_KEY && ev.newValue) {
+    try {
+      applyIncomingShared(JSON.parse(ev.newValue), true);
+    } catch {}
+  }
+});
+
+async function initRealtimeBackend() {
+  try {
+    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+      const cfg = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'nvl-games-live';
+      const app = initializeApp(cfg);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+
+      if (!auth.currentUser) return;
+      firestoreDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'platform', 'live_state');
+      syncModeLabel = 'Canlı Cloud Senkron';
+
+      onSnapshot(firestoreDocRef, (snap) => {
+        if (snap.exists()) {
+          const remote = snap.data();
+          if ((remote.updatedAt || 0) >= (shared.updatedAt || 0)) {
+            applyIncomingShared(remote, true);
+          }
+        } else if ((shared.updatedAt || 0) > 0) {
+          setDoc(firestoreDocRef, shared).catch(() => {});
+        }
+      }, (err) => {
+        console.warn('onSnapshot dinleme hatası:', err);
+      });
+    }
+  } catch (e) {
+    console.warn('Yerel gerçek zamanlı senkronizasyon aktif:', e);
+  }
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toastBox');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.classList.remove('show'), 2700);
+}
+
+function applyTheme(theme) {
+  session.theme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', session.theme);
+  saveSession();
+}
+
+function isAdminRoute() {
+  return window.location.pathname.endsWith('/admin') || window.location.hash === '#admin';
+}
+
+function getObsTournamentId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('obs');
+}
+
+function getUserTeam(username) {
+  return state.teams.find(t =>
+    t.ownerUsername === username ||
+    (t.mainPlayers || []).some(p => p.username === username) ||
+    (t.subPlayers || []).some(p => p.username === username)
+  ) || null;
+}
+
+function canUserAccessLiveTournamentData(tour) {
+  if (!state.currentUser || !tour) return false;
+  if (state.currentUser.username === tour.creator) return true;
+  const myTeam = getUserTeam(state.currentUser.username);
+  if (!myTeam) return false;
+  return (tour.joinedTeams || []).includes(myTeam.id);
+}
+
+function getUnreadNotificationsCount() {
+  if (!state.currentUser) return 0;
+  return (state.notifications[state.currentUser.username] || []).filter(n => !n.read).length;
+}
+
+function pushNotificationToTarget(targetShared, username, text) {
+  targetShared.notifications[username] = targetShared.notifications[username] || [];
+  targetShared.notifications[username].unshift({
+    id: 'nt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    text,
+    time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    read: false
+  });
+}
+
+function calcPlacementPoints(rank) {
+  const r = Number(rank);
+  if (!r || r < 1) return 0;
+  const table = { 1: 10, 2: 6, 3: 5, 4: 4, 5: 3, 6: 2, 7: 1, 8: 1 };
+  return table[r] || 0;
+}
+
+function computeTournamentStandings(tour) {
+  const scores = tour.matchScores || {};
+  const joined = tour.joinedTeams || [];
+  const rows = joined.map(teamId => {
+    const tm = state.teams.find(x => x.id === teamId);
+    let placePts = 0;
+    let kills = 0;
+    let enteredMatches = 0;
+
+    for (let m = 1; m <= Number(tour.matches || 1); m++) {
+      const ms = (scores[m] && scores[m][teamId]) || null;
+      if (ms && (ms.rank !== '' || ms.kills !== '')) {
+        enteredMatches++;
+        placePts += calcPlacementPoints(ms.rank);
+        kills += Number(ms.kills || 0);
+      }
+    }
+
+    return {
+      teamId,
+      teamName: tm ? tm.name : teamId,
+      tag: tm ? tm.tag : '',
+      logoUrl: tm ? tm.logoUrl : '',
+      placePts,
+      kills,
+      totalPts: placePts + kills,
+      enteredMatches
+    };
+  });
+
+  rows.sort((a, b) => b.totalPts - a.totalPts || b.kills - a.kills);
+  return rows;
+}
+
+function computeGlobalTeamsLeaderboard() {
+  const totalsByTeam = new Map();
+
+  state.teams.forEach(tm => {
+    totalsByTeam.set(tm.id, {
+      teamId: tm.id,
+      name: tm.name,
+      tag: tm.tag,
+      logoUrl: tm.logoUrl || '',
+      matchesPlayed: 0,
+      placementPts: 0,
+      kills: 0,
+      totalPts: 0
+    });
+  });
+
+  state.tournaments.forEach(tour => {
+    const scores = tour.matchScores || {};
+    (tour.joinedTeams || []).forEach(tid => {
+      if (!totalsByTeam.has(tid)) {
+        const tm = state.teams.find(x => x.id === tid);
+        totalsByTeam.set(tid, {
+          teamId: tid,
+          name: tm ? tm.name : tid,
+          tag: tm ? tm.tag : '',
+          logoUrl: tm ? tm.logoUrl : '',
+          matchesPlayed: 0,
+          placementPts: 0,
+          kills: 0,
+          totalPts: 0
+        });
+      }
+      const entry = totalsByTeam.get(tid);
+      for (let m = 1; m <= Number(tour.matches || 1); m++) {
+        const ms = scores[m]?.[tid];
+        if (ms && (ms.rank !== '' || ms.kills !== '')) {
+          entry.matchesPlayed += 1;
+          const p = calcPlacementPoints(ms.rank);
+          const k = Number(ms.kills || 0);
+          entry.placementPts += p;
+          entry.kills += k;
+          entry.totalPts += p + k;
+        }
+      }
+    });
+  });
+
+  return [...totalsByTeam.values()].sort((a, b) => b.totalPts - a.totalPts || b.kills - a.kills);
+}
+
+function areAllTournamentScoresCompleted(tour) {
+  const joined = tour.joinedTeams || [];
+  if (joined.length === 0) return false;
+  const totalMatches = Number(tour.matches || 1);
+  for (let m = 1; m <= totalMatches; m++) {
+    for (const tid of joined) {
+      const entry = tour.matchScores?.[m]?.[tid];
+      if (!entry || entry.rank === '' || entry.rank === undefined || entry.kills === '' || entry.kills === undefined) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function renderTeamLogoHtml(team, size = 44) {
+  if (team && team.logoUrl) {
+    return `<img class="team-logo-img" style="width:${size}px;height:${size}px;" src="${escapeAttr(team.logoUrl)}" alt="${escapeAttr(team.name)}">`;
+  }
+  const letter = (team?.tag || team?.name || 'T').slice(0, 2).toUpperCase();
+  return `<span class="team-logo-img" style="width:${size}px;height:${size}px;">${escapeHtml(letter)}</span>`;
+}
+
+function syncTournamentTimings() {
+  const now = Date.now();
+  const hasDue = state.tournaments.some(t => {
+    if (t.status !== 'open') return false;
+    const startMs = new Date(`${t.date}T${t.time}:00`).getTime();
+    return !Number.isNaN(startMs) && now >= startMs;
+  });
+  if (hasDue) {
+    commitSharedMutation(s => {
+      s.tournaments.forEach(t => {
+        if (t.status === 'open') {
+          const startMs = new Date(`${t.date}T${t.time}:00`).getTime();
+          if (!Number.isNaN(startMs) && now >= startMs) t.status = 'live';
+        }
+      });
+    });
+  }
+}
+
+setInterval(() => {
+  syncTournamentTimings();
+}, 15000);
+
+function navigate(view, tourId = null, tab = null) {
+  activeView = view;
+  if (tourId) activeTournamentPageId = tourId;
+  if (tab) activeTournamentTab = tab;
+  closeExploreDrawer();
+  renderAll(false);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openExploreDrawer() {
+  if (!state.currentUser) return;
+  const isOrg = !!state.currentUser.canCreateTournament;
+  const box = document.getElementById('drawerDynamicContent');
+
+  box.innerHTML = `
+    ${isOrg ? `
+      <button class="drawer-btn highlight" onclick="navigate('organizer')">
+        <span>🏆 Turnuva Paneli</span>
+        <span>Aç →</span>
+      </button>
+    ` : `
+      <button class="drawer-btn" onclick="navigate('team')">
+        <span>🛡️ Takımım</span>
+        <span>→</span>
+      </button>
+    `}
+    <button class="drawer-btn" onclick="navigate('home')"><span>🏠 Ana Sayfa</span><span>→</span></button>
+    <button class="drawer-btn" onclick="navigate('tournaments')"><span>🏆 Turnuvalar</span><span>→</span></button>
+    <button class="drawer-btn" onclick="navigate('community')"><span>💬 Topluluk</span><span>→</span></button>
+    <button class="drawer-btn" onclick="navigate('voice_channels')"><span>🔊 Ses Kanalları</span><span>→</span></button>
+    <button class="drawer-btn" onclick="navigate('badges')"><span>🏅 Rozetler</span><span>→</span></button>
+    <button class="drawer-btn" onclick="navigate('dm')"><span>✉️ DM Kutusu</span><span>→</span></button>
+    <button class="drawer-btn" onclick="navigate('settings')"><span>⚙️ Ayarlar</span><span>→</span></button>
+    <button class="drawer-btn" style="margin-top:8px; border-color:rgba(225,29,72,0.45); color:var(--accent);" onclick="logoutUser()">
+      <span>🚪 Hesaptan Çıkış Yap</span>
+      <span>@${escapeHtml(state.currentUser.username)}</span>
+    </button>
+  `;
+  document.getElementById('exploreBackdrop').classList.add('open');
+}
+
+function closeExploreDrawer() {
+  document.getElementById('exploreBackdrop').classList.remove('open');
+}
+
+/* AUTH */
+function openAuthModal(mode = 'login') {
+  const isReg = mode === 'register';
+  openModal(`
+    <div class="modal-head">
+      <h3>${isReg ? 'NVL Games — Kayıt Ol' : 'NVL Games — Giriş Yap'}</h3>
+      <button class="icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+      <button class="pill ${!isReg ? 'active' : ''}" onclick="openAuthModal('login')">Giriş Yap</button>
+      <button class="pill ${isReg ? 'active' : ''}" onclick="openAuthModal('register')">Kayıt Ol</button>
+    </div>
+    ${isReg ? `
+      <form onsubmit="submitRegister(event)">
+        <div class="form-group"><label>Kullanıcı Adı</label><input class="input" name="username" required placeholder="nyxvoid"></div>
+        <div class="form-group"><label>E-posta</label><input class="input" name="email" type="email" required placeholder="ornek@mail.com"></div>
+        <div class="form-group"><label>Şifre</label><input class="input" name="password" type="password" required></div>
+        <div class="form-grid-2">
+          <div class="form-group"><label>PUBG Oyuncu Adı</label><input class="input" name="pubgName" required placeholder="NVLNyxVoid"></div>
+          <div class="form-group"><label>PUBG ID</label><input class="input" name="pubgId" required placeholder="5123456789"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" type="submit">Kayıt Ol</button>
+      </form>
+    ` : `
+      <form onsubmit="submitLogin(event)">
+        <div class="form-group"><label>E-posta veya Kullanıcı Adı</label><input class="input" name="identifier" required></div>
+        <div class="form-group"><label>Şifre</label><input class="input" name="password" type="password" required></div>
+        <button class="btn btn-primary" style="width:100%;" type="submit">Giriş Yap</button>
+      </form>
+    `}
+  `);
+}
+
+async function submitRegister(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const username = fd.get('username').trim().replace(/^@+/, '').toLowerCase();
+  const email = fd.get('email').trim().toLowerCase();
+  const password = fd.get('password');
+
+  if (state.users.some(u => u.username === username || u.email === email)) {
+    showToast('Bu kullanıcı adı veya e-posta zaten kayıtlı.');
+    return;
+  }
+
+  const u = {
+    id: 'u_' + Date.now(),
+    name: username,
+    username,
+    email,
+    password,
+    pubgName: fd.get('pubgName').trim(),
+    pubgId: fd.get('pubgId').trim(),
+    role: 'Entry Fragger',
+    bio: '',
+    instagram: '',
+    tiktok: '',
+    cardTheme: 'Klasik Arena',
+    siteLanguage: 'Otomatik (cihaz dili)',
+    deviceNotifications: true,
+    balance: 0,
+    canCreateTournament: false,
+    badges: ['NVL Üye'],
+    joinedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  session.currentUsername = username;
+  saveSession();
+  await commitSharedMutation(s => {
+    s.users.push(u);
+  });
+  closeModal();
+  showToast('Kayıt tamamlandı!');
+}
+
+function submitLogin(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const idVal = fd.get('identifier').trim().replace(/^@+/, '').toLowerCase();
+  const passVal = fd.get('password');
+  const found = state.users.find(u => (u.username === idVal || u.email === idVal) && u.password === passVal);
+  if (!found) { showToast('Giriş bilgileri hatalı.'); return; }
+  session.currentUsername = found.username;
+  saveSession();
+  closeModal();
+  showToast(`Hoş geldin @${found.username}`);
+  renderAll(false);
+}
+
+function logoutUser() {
+  session.currentUsername = null;
+  session.activeVoiceChannel = null;
+  saveSession();
+  if (['team', 'organizer', 'dm', 'settings', 'wallet'].includes(activeView)) activeView = 'home';
+  closeExploreDrawer();
+  renderAll(false);
+}
+
+/* OBS YAYIN EKRANI */
+function renderObsOverlayPage(tourId) {
+  const tour = state.tournaments.find(t => t.id === tourId);
+  const shell = document.getElementById('shellWrapper');
+  if (!tour) {
+    shell.innerHTML = `<div class="obs-screen"><div class="obs-left-match">Turnuva bulunamadı.</div></div>`;
+    return;
+  }
+  const rows = computeTournamentStandings(tour);
+  const currentMatch = Number(tour.currentMatch || 1);
+
+  shell.innerHTML = `
+    <div class="obs-screen">
+      ${tour.status === 'live' ? `
+        <div class="obs-right-board">
+          <div class="obs-board-head">
+            <span>CANLI SIRALAMA · ${escapeHtml(tour.title)}</span>
+            <span>SIRA / KİLL / TOP</span>
+          </div>
+          ${rows.length === 0 ? `<div style="padding:14px; font-size:13px; color:#cbd5e1;">Slotta takım bekleniyor...</div>` :
+            rows.map((r, i) => `
+              <div class="obs-row">
+                <span style="color:#fda4af;">#${i + 1}</span>
+                <span>${escapeHtml(r.teamName)}</span>
+                <span style="text-align:center; color:#cbd5e1;">${r.placePts}</span>
+                <span style="text-align:center; color:#34d399;">${r.kills}</span>
+                <span style="text-align:right; color:#fff; font-weight:900;">${r.totalPts}</span>
+              </div>
+            `).join('')}
+        </div>
+      ` : ''}
+
+      <div class="obs-left-match">
+        <div style="width:42px; height:42px; border-radius:10px; background:#E11D48; display:grid; place-items:center; font-weight:900; font-size:13px;">PUBG</div>
+        <div>
+          <div style="font-size:11px; color:#fda4af; font-weight:800; letter-spacing:0.8px;">PUBG MOBILE · ${escapeHtml(tour.title)}</div>
+          <div style="font-size:18px; font-weight:900;">MAÇ ${currentMatch} / ${escapeHtml(String(tour.matches))}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* RENDER ORCHESTRATOR (ODAK & İMLEÇ KORUMALI) */
+function renderAll(preserveFocus = true) {
+  state = buildMergedState();
+  document.documentElement.setAttribute('data-theme', state.theme);
+  applyFaviconLogo(state.siteLogoUrl);
+
+  let focusSnap = null;
+  if (preserveFocus && document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+    focusSnap = {
+      id: document.activeElement.id,
+      name: document.activeElement.name,
+      value: document.activeElement.value,
+      start: document.activeElement.selectionStart,
+      end: document.activeElement.selectionEnd
+    };
+  }
+
+  const obsTourId = getObsTournamentId();
+  if (obsTourId || activeView === 'obs_preview') {
+    renderObsOverlayPage(obsTourId || activeTournamentPageId);
+    return;
+  }
+
+  if (isAdminRoute()) {
+    renderAdminPage();
+    restoreFocusSnapshot(focusSnap);
+    return;
+  }
+
+  const shell = document.getElementById('shellWrapper');
+  const isLoggedIn = !!state.currentUser;
+  const isOrg = !!(isLoggedIn && state.currentUser.canCreateTournament);
+  const unreadNotif = getUnreadNotificationsCount();
+  const balText = isLoggedIn ? Number(state.currentUser.balance || 0).toFixed(0) : '0';
+
+  shell.innerHTML = `
+    <header class="navbar">
+      <div class="navbar-inner">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="brand" onclick="navigate('home')">
+            ${renderSiteBrandEmblem(42, 38)}
+            <span>NVL Games</span>
+          </button>
+          <span class="live-dot-pill" title="${escapeAttr(syncModeLabel)}">
+            <span class="live-dot-pulse"></span>
+            <span>CANLI</span>
+          </span>
+        </div>
+
+        <nav class="nav-links">
+          <button class="nav-link ${activeView === 'home' ? 'active' : ''}" onclick="navigate('home')">Ana Sayfa</button>
+          <button class="nav-link ${activeView === 'tournaments' ? 'active' : ''}" onclick="navigate('tournaments')">Turnuvalar</button>
+          <button class="nav-link ${activeView === 'community' ? 'active' : ''}" onclick="navigate('community')">Topluluk</button>
+          ${!isOrg ? `<button class="nav-link ${activeView === 'team' ? 'active' : ''}" onclick="navigate('team')">Takımım</button>` : ''}
+          <button class="nav-link ${activeView === 'badges' ? 'active' : ''}" onclick="navigate('badges')">Rozetler</button>
+        </nav>
+
+        <div class="nav-right">
+          ${!isLoggedIn ? `
+            <button class="btn btn-secondary" onclick="openAuthModal('login')">Giriş Yap</button>
+            <button class="btn btn-primary" onclick="openAuthModal('register')">Kayıt Ol</button>
+          ` : `
+            <button class="balance-pill" onclick="navigate('wallet')" title="Ödemelerim / Bakiye Yükle">
+              <span class="top">+ Bakiye</span>
+              <span class="val">${balText} <span style="color:var(--accent);">V</span></span>
+            </button>
+            <button class="icon-btn" onclick="navigate('community')" title="Topluluk">
+              <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            </button>
+            <button class="icon-btn" onclick="navigate('search')" title="Ara">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+            <button class="icon-btn bell-btn" onclick="openNotificationsModal()" title="Bildirimler">
+              <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span class="badge-count ${unreadNotif > 0 ? 'show' : ''}">${unreadNotif > 99 ? '99+' : unreadNotif}</span>
+            </button>
+            <button class="icon-btn" onclick="navigate('settings')" title="Ayarlar">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+            <button class="icon-btn" onclick="openExploreDrawer()" title="Keşfet">
+              <svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+            </button>
+          `}
+        </div>
+      </div>
+    </header>
+
+    <main class="container" id="mainContainer"></main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${renderSiteBrandEmblem(32, 28)}
+          <span><strong>NVL Games</strong> · PUBG Mobile Turnuva Platformu</span>
+        </div>
+        <div style="display:flex; gap:14px;">
+          <button onclick="navigate('home')">Ana Sayfa</button>
+          <button onclick="navigate('tournaments')">Turnuvalar</button>
+          <button onclick="navigate('community')">Topluluk</button>
+          <button onclick="navigate('badges')">Rozetler</button>
+        </div>
+      </div>
+    </footer>
+  `;
+
+  const main = document.getElementById('mainContainer');
+  if (activeView === 'tournaments') renderTournamentsPage(main);
+  else if (activeView === 'tournament_room') renderTournamentCenterPage(main);
+  else if (activeView === 'community') renderCommunityPage(main);
+  else if (activeView === 'voice_channels') renderVoiceChannelsPage(main);
+  else if (activeView === 'team') renderTeamPage(main);
+  else if (activeView === 'organizer') renderOrganizerPage(main);
+  else if (activeView === 'badges') renderBadgesPage(main);
+  else if (activeView === 'dm') renderDmPage(main);
+  else if (activeView === 'settings') renderSettingsPage(main);
+  else if (activeView === 'wallet') renderWalletPage(main);
+  else if (activeView === 'search') renderSearchPage(main);
+  else renderHomePage(main);
+
+  restoreFocusSnapshot(focusSnap);
+}
+
+function restoreFocusSnapshot(snap) {
+  if (!snap) return;
+  const target = snap.id
+    ? document.getElementById(snap.id)
+    : (snap.name ? document.querySelector(`[name="${snap.name}"]`) : null);
+  if (target) {
+    target.focus();
+    if (typeof snap.value === 'string') target.value = snap.value;
+    if (typeof snap.start === 'number' && target.setSelectionRange) {
+      try { target.setSelectionRange(snap.start, snap.end); } catch {}
+    }
+  }
+}
+
+/* HOME PAGE: DUYURULAR -> KAYITLI KULLANICILAR & TAKIMLAR + TAKIMLAR SIRALAMASI -> TURNUVAlar */
+function renderHomePage(root) {
+  const rankedTeams = computeGlobalTeamsLeaderboard();
+
+  root.innerHTML = `
+    <section class="page-section">
+      <!-- DUYURULAR -->
+      <div>
+        <div class="eyebrow">● NVL GAMES · DUYURULAR</div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+          ${state.announcements.length === 0 ? `<div class="empty-box">Henüz duyuru yok.</div>` : state.announcements.map(a => `
+            <button class="card" style="padding:14px 18px; display:flex; justify-content:space-between; width:100%; text-align:left;" onclick="openAnnouncementModal('${a.id}')">
+              <span>🔔 <strong>${escapeHtml(a.title)}</strong></span>
+              <span style="color:var(--text-muted); font-size:12px;">${escapeHtml(a.date)} ›</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- KAYITLI KULLANICILAR & TAKIMLAR ÖZETİ -->
+      <div class="section-block">
+        <div class="eyebrow">● CANLI ARENA VERİLERİ</div>
+        <h2 class="section-title">Kayıtlı Kullanıcılar & Takımlar</h2>
+        <div class="home-stats-grid">
+          <div class="home-stat-card">
+            <strong>${state.users.length}</strong>
+            <span>Kayıtlı Kullanıcı</span>
+          </div>
+          <div class="home-stat-card">
+            <strong>${state.teams.length}</strong>
+            <span>Kayıtlı Takım</span>
+          </div>
+          <div class="home-stat-card">
+            <strong>${state.tournaments.length}</strong>
+            <span>Açılan Turnuva</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAKIMLAR SIRALAMASI (TURNUVALARIN HEMEN ÜSTÜNDE) -->
+      <div class="section-block">
+        <div class="eyebrow">● PUAN SIRALAMASI</div>
+        <h2 class="section-title">Takımlar Sıralaması</h2>
+        <div class="card" style="padding:18px; margin-top:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px solid var(--border);">
+            <strong style="color:var(--accent); font-size:13.5px;">🏆 Takım Sıralaması</strong>
+            <span style="font-size:12px; color:var(--text-muted);">Sıra Puanı + Kill Toplamı</span>
+          </div>
+          ${rankedTeams.length === 0 ? `
+            <div class="empty-box" style="margin-top:12px;">Sıralamada henüz takım bulunmuyor.</div>
+          ` : rankedTeams.map((tm, idx) => `
+            <div class="lb-team-row">
+              <div class="lb-team-rank">#${idx + 1}</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                ${renderTeamLogoHtml(tm, 38)}
+                <div>
+                  <strong>${escapeHtml(tm.name)}</strong>
+                  <small style="display:block; color:var(--text-muted); font-size:12px;">[${escapeHtml(tm.tag)}] · ${tm.matchesPlayed} maç</small>
+                </div>
+              </div>
+              <div class="lb-team-pts">
+                <strong>${tm.totalPts}</strong>
+                <small>${tm.placementPts} sıra · ${tm.kills} kill</small>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- TURNUVAlar -->
+      <div class="section-block">
+        <div class="eyebrow">● REKABET ARENASI</div>
+        <h2 class="section-title">Turnuvalar</h2>
+        <div style="margin-top:14px;">
+          ${renderTournamentCards(state.tournaments)}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderTournamentCards(list) {
+  if (!list.length) {
+    return `<div class="empty-box"><strong style="display:block; color:var(--text); margin-bottom:4px;">Turnuva yok</strong>Şu anda açık turnuva bulunmuyor.</div>`;
+  }
+
+  return `
+    <div class="tour-grid">
+      ${list.map(t => {
+        const joinedCount = (t.joinedTeams || []).length;
+        const maxT = t.maxTeams || 23;
+        const pct = Math.min(100, Math.round((joinedCount / maxT) * 100));
+        const badgeLabel = t.status === 'live' ? '● CANLI' : t.status === 'completed' ? '✓ BİTTİ' : '● KAYIT AÇIK';
+        return `
+          <article class="tour-card">
+            <div class="tour-banner">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="tag-live">${badgeLabel}</span>
+                <span style="background:rgba(0,0,0,0.5); padding:3px 9px; border-radius:6px; font-size:10.5px; font-weight:800; color:#fff;">TAKIMLI</span>
+              </div>
+              <div>
+                <div style="font-size:10.5px; font-weight:800; color:#e2e8f0; letter-spacing:0.8px;">PUBG MOBILE · SQUAD</div>
+                <div style="font-size:22px; font-weight:900; color:#fff;">${escapeHtml(t.title)}</div>
+              </div>
+            </div>
+            <div class="tour-body">
+              <div style="display:flex; justify-content:space-between; font-size:13px;">
+                <span>Organizatör: <button class="link-btn" onclick="openUserProfileModal('${escapeAttr(t.creator)}')">@${escapeHtml(t.creator)}</button></span>
+                <span style="color:var(--text-muted);">${escapeHtml(String(t.matches))} maç · ${t.isStreamed ? 'Yayınlı' : 'Yayınsız'}</span>
+              </div>
+
+              <div class="tour-schedule-box">
+                <div><small>Tarih</small><strong>${escapeHtml(t.date)}</strong></div>
+                <div><small>Başlangıç</small><strong>${escapeHtml(t.time)}</strong></div>
+                <div><small>Giriş</small><strong>${escapeHtml(t.joinMethod)}</strong></div>
+              </div>
+
+              <div class="tour-money-row">
+                <div><small>🏆 Ödül</small><strong>${escapeHtml(t.prizePool)}</strong></div>
+                <div><small>🏛️ Katılım</small><strong>${Number(t.entryFee) > 0 ? escapeHtml(t.entryFee) + ' V' : 'Ücretsiz'}</strong></div>
+              </div>
+
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted);">
+                  <span>Doluluk ${joinedCount}/${maxT} (${escapeHtml(t.roomType)})</span>
+                  <span>%${pct}</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+              </div>
+
+              <button class="btn btn-secondary" style="width:100%;" onclick="navigate('tournament_room', '${t.id}', 'overview')">
+                Turnuvayı incele →
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderTournamentsPage(root) {
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar">
+        <div><div class="eyebrow">● REKABET ARENASI</div><h2 class="section-title">Turnuvalar</h2></div>
+        <button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button>
+      </div>
+      ${renderTournamentCards(state.tournaments)}
+    </section>
+  `;
+}
+
+/* TURNUVA MERKEZİ */
+function renderTournamentCenterPage(root) {
+  const tour = state.tournaments.find(t => t.id === activeTournamentPageId) || state.tournaments[0];
+  if (!tour) {
+    root.innerHTML = `<section class="page-section"><div class="empty-box">Turnuva bulunamadı.</div></section>`;
+    return;
+  }
+
+  const isOrgOwner = !!(state.currentUser && state.currentUser.username === tour.creator);
+  const myTeam = state.currentUser && !state.currentUser.canCreateTournament ? getUserTeam(state.currentUser.username) : null;
+  const isJoined = !!(myTeam && (tour.joinedTeams || []).includes(myTeam.id));
+  const isPending = !!(myTeam && (tour.pendingTeams || []).includes(myTeam.id));
+  const hasLiveAccess = canUserAccessLiveTournamentData(tour);
+  const standings = computeTournamentStandings(tour);
+  const allScoresDone = areAllTournamentScoresCompleted(tour);
+  const tChats = state.tournamentChats[tour.id] || [];
+  const statusText = tour.status === 'live' ? 'Canlı' : tour.status === 'completed' ? 'Bitti' : 'Kayıt Açık';
+
+  const tabs = [
+    { id: 'overview', label: '🏠 Özet' },
+    { id: 'room_info', label: '🔒 Oda Bilgisi' },
+    { id: 'slots', label: '👥 Slotlar' },
+    { id: 'rosters', label: '🛡️ Kadrolar' },
+    { id: 'drop_zones', label: '🗺️ Atlayış Bölgeleri' },
+    { id: 'rules', label: '📜 Kurallar' },
+    { id: 'result', label: '🏆 Result' },
+    ...(tour.status === 'live' && hasLiveAccess ? [{ id: 'livescore', label: '🔴 Canlı Livescore & Chat' }] : [])
+  ];
+
+  root.innerHTML = `
+    <section class="page-section">
+      <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+        <button class="link-btn" onclick="navigate('tournaments')">‹ Turnuvalar</button>
+        <span>/</span>
+        <strong>${escapeHtml(tour.title)}</strong>
+      </div>
+
+      <div class="tm-hero">
+        <div class="tm-hero-top">
+          <div class="eyebrow" style="margin-bottom:0;">TURNUVA MERKEZİ · #${escapeHtml(tour.id.slice(-4))}</div>
+          <span class="tag-live">${statusText}</span>
+        </div>
+
+        <div class="tm-hero-main">
+          <div class="tm-trophy-box">🏆</div>
+          <div>
+            <div style="font-size:11.5px; font-weight:800; letter-spacing:0.8px; color:#cbd5e1;">PUBG MOBILE</div>
+            <h1 style="font-size:28px; font-weight:900; color:#fff;">${escapeHtml(tour.title)}</h1>
+            <div style="font-size:13px; color:#cbd5e1; margin-top:4px;">
+              📅 ${escapeHtml(tour.date)} ${escapeHtml(tour.time)} · 👥 Squad · ${escapeHtml(String(tour.matches))} maç
+            </div>
+          </div>
+        </div>
+
+        <div class="tm-hero-bottom">
+          <div>
+            Organizatör: <button class="link-btn" style="color:#fff;" onclick="openUserProfileModal('${escapeAttr(tour.creator)}')">@${escapeHtml(tour.creator)}</button>
+          </div>
+          <button class="btn btn-secondary" onclick="navigator.clipboard?.writeText(window.location.href); showToast('Turnuva bağlantısı kopyalandı.');">
+            🔗 Paylaş
+          </button>
+        </div>
+      </div>
+
+      <div class="tm-tabs-bar">
+        ${tabs.map(tb => `
+          <button class="tm-tab ${activeTournamentTab === tb.id ? 'active' : ''}" onclick="activeTournamentTab='${tb.id}'; renderAll(false);">
+            ${tb.label}
+          </button>
+        `).join('')}
+      </div>
+
+      ${activeTournamentTab === 'overview' ? `
+        <h2 style="font-size:20px; font-weight:800;">Turnuvaya genel bakış</h2>
+        <p class="section-sub">Başvuru durumun, maç bilgileri ve ihtiyacın olan işlemler tek yerde.</p>
+
+        <div class="card" style="padding:18px; margin-top:14px; border-left:3px solid var(--warning); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <small style="color:var(--text-muted); font-weight:700;">Başvuru</small>
+            <h3 style="font-size:16px; font-weight:800;">
+              ${tour.status !== 'open' ? 'Başvurular kapalı' : isJoined ? 'Başvurun onaylandı — Slottasın' : isPending ? 'Katılma isteğin onay bekliyor' : 'Başvurular açık'}
+            </h3>
+            <small style="color:var(--text-muted);">
+              ${tour.status !== 'open' ? 'Turnuva başladı veya tamamlandı; yeni başvuru alınmıyor.' :
+                isJoined ? 'Takımım sekmesinden oyuncu ID bilgilerini yönetebilirsin.' :
+                isPending ? 'Organizatör onayladığında bildirim alacaksın.' :
+                'Takımınla turnuvaya katılma isteği gönderebilirsin.'}
+            </small>
+          </div>
+          ${!isOrgOwner && tour.status === 'open' && !isJoined && !isPending ? `
+            <button class="btn btn-primary" onclick="requestJoinTournament('${tour.id}')">Katılma İsteği Gönder</button>
+          ` : ''}
+        </div>
+
+        <div class="tm-quick-grid">
+          <button class="tm-quick-card" onclick="activeTournamentTab='slots'; renderAll(false);">
+            <strong>👥 Slotlar ve kadrolar</strong>
+            <small>Takım yerleşimleri ve logolu ekipler</small>
+          </button>
+          <button class="tm-quick-card" onclick="activeTournamentTab='room_info'; renderAll(false);">
+            <strong>🔒 Oda Bilgileri</strong>
+            <small>Erişim koşullarını görüntüle</small>
+          </button>
+          <button class="tm-quick-card" onclick="activeTournamentTab='drop_zones'; renderAll(false);">
+            <strong>🗺️ Atlayış Bölgeleri</strong>
+            <small>Takımların harita üzerindeki iniş noktaları</small>
+          </button>
+          <button class="tm-quick-card" onclick="activeTournamentTab='result'; renderAll(false);">
+            <strong>🏆 Result</strong>
+            <small>Yayınlanan sonuçlar ve takım sıralaması</small>
+          </button>
+        </div>
+
+        <div class="two-col">
+          <div class="card" style="padding:18px;">
+            <h3 style="margin-bottom:8px;">💬 Açıklama</h3>
+            <p style="font-size:13.5px; color:var(--text-muted); white-space:pre-line;">${escapeHtml(tour.rules || 'Turnuva kurallarını okuyalım.')}</p>
+            <button class="link-btn" style="margin-top:12px; font-size:13px;" onclick="activeTournamentTab='rules'; renderAll(false);">Kuralları incele ›</button>
+          </div>
+
+          <div class="card" style="padding:18px;">
+            <h3 style="margin-bottom:10px;">📅 Turnuva Bilgileri</h3>
+            <div class="lfg-list">
+              <div class="lfg-item"><span>Başlangıç</span><strong>${escapeHtml(tour.date)} - ${escapeHtml(tour.time)}</strong></div>
+              <div class="lfg-item"><span>Format</span><strong>Squad · Takımlı (${escapeHtml(tour.roomType)})</strong></div>
+              <div class="lfg-item"><span>Giriş Yöntemi</span><strong>${escapeHtml(tour.joinMethod)}</strong></div>
+              <div class="lfg-item"><span>Kontenjan</span><strong>${(tour.joinedTeams || []).length} / ${tour.maxTeams || 23} takım</strong></div>
+              <div class="lfg-item"><span>Ödül Havuzu</span><strong>${escapeHtml(tour.prizePool)}</strong></div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${activeTournamentTab === 'room_info' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:8px;">🔒 Oda Bilgileri</h3>
+          ${!isJoined && !isOrgOwner ? `
+            <div class="empty-box">Oda giriş bilgileri yalnızca organizatör tarafından onaylanmış takımlara görünür.</div>
+          ` : `
+            <p style="font-size:14px; white-space:pre-line;">${escapeHtml(tour.roomInfoText || 'Organizatör henüz oda kodu / arkadaş ekleme bilgisini girmedi.')}</p>
+          `}
+        </div>
+      ` : ''}
+
+      ${activeTournamentTab === 'slots' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:12px;">👥 Onaylanan Takım Slotları (${(tour.joinedTeams || []).length}/${tour.maxTeams || 23})</h3>
+          ${(tour.joinedTeams || []).length === 0 ? `
+            <div class="empty-box">Organizatör tarafından onaylanmış takım henüz yok.</div>
+          ` : `
+            <div class="lfg-list">
+              ${tour.joinedTeams.map((tid, idx) => {
+                const tm = state.teams.find(x => x.id === tid);
+                return `
+                  <div class="lfg-item">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                      <span style="font-weight:900; color:var(--accent); min-width:58px;">Slot #${String(idx + 1).padStart(2, '0')}</span>
+                      ${renderTeamLogoHtml(tm, 42)}
+                      <div>
+                        <strong>${tm ? escapeHtml(tm.name) : tid}</strong>
+                        <small>[${tm ? escapeHtml(tm.tag) : ''}] · Kaptan: @${tm ? escapeHtml(tm.ownerUsername) : '-'}</small>
+                      </div>
+                    </div>
+                    <span class="tag-live" style="background:var(--success-soft); color:var(--success); border-color:rgba(16,185,129,0.35);">✓ Onaylı</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      ` : ''}
+
+      ${activeTournamentTab === 'rosters' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:12px;">🛡️ Kayıtlı Kadrolar</h3>
+          ${(tour.joinedTeams || []).length === 0 ? `
+            <div class="empty-box">Henüz onaylı kadro yok.</div>
+          ` : `
+            <div class="lfg-list">
+              ${tour.joinedTeams.map(tid => {
+                const tm = state.teams.find(x => x.id === tid);
+                const roster = state.tournamentRosters[`${tour.id}_${tid}`] || { mainIds: [], subIds: [] };
+                return `
+                  <div class="lfg-item" style="align-items:flex-start;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      ${renderTeamLogoHtml(tm, 38)}
+                      <div>
+                        <strong>${tm ? escapeHtml(tm.name) : tid} [${tm ? escapeHtml(tm.tag) : ''}]</strong>
+                        <small>Ana Kadro ID: ${(roster.mainIds || []).filter(Boolean).join(', ') || 'Girilmedi'}</small>
+                        <small>Yedek ID: ${(roster.subIds || []).filter(Boolean).join(', ') || 'Girilmedi'}</small>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      ` : ''}
+
+      ${activeTournamentTab === 'drop_zones' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:8px;">🗺️ Atlayış Bölgeleri</h3>
+          <p style="font-size:14px; white-space:pre-line;">${escapeHtml(tour.dropZonesText || 'Organizatör tarafından henüz atlayış bölgesi bilgisi girilmedi.')}</p>
+        </div>
+      ` : ''}
+
+      ${activeTournamentTab === 'rules' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:8px;">📜 Turnuva Kuralları</h3>
+          <p style="font-size:14px; white-space:pre-line;">${escapeHtml(tour.rules || 'Kural belirtilmedi.')}</p>
+        </div>
+      ` : ''}
+
+      ${activeTournamentTab === 'result' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:10px;">🏆 Result — Sonuçlar ve Sıralama</h3>
+          ${!allScoresDone && tour.status !== 'completed' ? `
+            <div class="empty-box">Tüm maçlar tamamlanıp puanlar girildiğinde resmi Result tablosu burada yayınlanır.</div>
+          ` : `
+            <table class="score-table">
+              <thead><tr><th>Sıra</th><th>Takım</th><th>Sıra Puanı</th><th>Eleme</th><th>Toplam Puan</th></tr></thead>
+              <tbody>
+                ${standings.map((r, i) => `
+                  <tr>
+                    <td><strong>#${i + 1}</strong></td>
+                    <td style="display:flex; align-items:center; gap:10px;">${renderTeamLogoHtml(r, 32)} <strong>${escapeHtml(r.teamName)}</strong></td>
+                    <td>${r.placePts}</td>
+                    <td>${r.kills}</td>
+                    <td><strong style="color:var(--success);">${r.totalPts}</strong></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
+      ` : ''}
+
+      ${activeTournamentTab === 'livescore' && tour.status === 'live' && hasLiveAccess ? `
+        <div class="card" style="padding:20px; margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3>🔴 Canlı Livescore (Aktif Maç: ${tour.currentMatch || 1}/${tour.matches})</h3>
+            <span class="tag-live">Sadece Kayıtlı Katılımcılar</span>
+          </div>
+          <table class="score-table">
+            <thead><tr><th>#</th><th>Takım</th><th>Sıra Puanı</th><th>Eleme</th><th>Toplam</th></tr></thead>
+            <tbody>
+              ${standings.map((r, i) => `
+                <tr>
+                  <td>#${i + 1}</td>
+                  <td style="display:flex; align-items:center; gap:10px;">${renderTeamLogoHtml(r, 30)} <strong>${escapeHtml(r.teamName)}</strong></td>
+                  <td>${r.placePts}</td>
+                  <td>${r.kills}</td>
+                  <td><strong>${r.totalPts}</strong></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card chat-box">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>💬 Turnuva Canlı Chat</h3>
+            ${isOrgOwner ? `
+              <button class="btn ${tour.chatClosed ? 'btn-success' : 'btn-secondary'}" onclick="toggleTournamentChat('${tour.id}')">
+                ${tour.chatClosed ? 'Chatı Aç' : 'Chatı Kapat'}
+              </button>
+            ` : ''}
+          </div>
+          <div class="chat-messages">
+            ${tChats.length === 0 ? `<div class="empty-box">Henüz mesaj yok.</div>` : tChats.map(m => `
+              <div class="msg-row">
+                <div class="msg-head">
+                  <button class="link-btn msg-author" onclick="openUserProfileModal('${escapeAttr(m.author)}')">@${escapeHtml(m.author)}</button>
+                  <span class="msg-time">${escapeHtml(m.time)}</span>
+                </div>
+                <div>${escapeHtml(m.text)}</div>
+              </div>
+            `).join('')}
+          </div>
+          ${!tour.chatClosed ? `
+            <form class="chat-form" onsubmit="sendTournamentChat(event, '${tour.id}')">
+              <input class="input" id="tourChatInput" placeholder="Canlı turnuva sohbetine yaz..." required>
+              <button class="btn btn-primary" type="submit">Gönder</button>
+            </form>
+          ` : `<div class="empty-box" style="padding:12px;">Chat organizatör tarafından kapatıldı.</div>`}
+        </div>
+      ` : ''}
+    </section>
+  `;
+}
+
+async function requestJoinTournament(tourId) {
+  if (!state.currentUser) { openAuthModal('login'); return; }
+  if (state.currentUser.canCreateTournament) { showToast('Organizatörler turnuvaya katılamaz.'); return; }
+  const myTeam = getUserTeam(state.currentUser.username);
+  if (!myTeam) { showToast('Önce Takımım sekmesinden takımınızı kurun.'); navigate('team'); return; }
+  const tour = state.tournaments.find(t => t.id === tourId);
+  if (!tour) return;
+
+  await commitSharedMutation(s => {
+    const tr = s.tournaments.find(t => t.id === tourId);
+    if (!tr) return;
+    tr.pendingTeams = tr.pendingTeams || [];
+    if (!tr.pendingTeams.includes(myTeam.id) && !(tr.joinedTeams || []).includes(myTeam.id)) {
+      tr.pendingTeams.push(myTeam.id);
+    }
+  });
+  showToast('Katılma isteği anında organizatöre gönderildi.');
+}
+
+async function toggleTournamentChat(tourId) {
+  await commitSharedMutation(s => {
+    const tour = s.tournaments.find(t => t.id === tourId);
+    if (tour && state.currentUser && state.currentUser.username === tour.creator) {
+      tour.chatClosed = !tour.chatClosed;
+    }
+  });
+}
+
+async function sendTournamentChat(e, tourId) {
+  e.preventDefault();
+  const tour = state.tournaments.find(t => t.id === tourId);
+  if (!tour || tour.chatClosed || !canUserAccessLiveTournamentData(tour)) return;
+  const inp = document.getElementById('tourChatInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  await commitSharedMutation(s => {
+    s.tournamentChats[tourId] = s.tournamentChats[tourId] || [];
+    s.tournamentChats[tourId].push({
+      author: state.currentUser.username,
+      text,
+      time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    });
+  });
+}
+
+/* ORGANİZATÖR PANELİ */
+function renderOrganizerPage(root) {
+  if (!state.currentUser || !state.currentUser.canCreateTournament) { navigate('home'); return; }
+
+  const myTours = state.tournaments.filter(t => t.creator === state.currentUser.username);
+  if (myTours.length > 0 && (!selectedOrganizerTourId || !myTours.some(t => t.id === selectedOrganizerTourId))) {
+    selectedOrganizerTourId = myTours[0].id;
+  }
+  const activeTour = myTours.find(t => t.id === selectedOrganizerTourId) || null;
+  const myIdLogs = state.idChangeLogs.filter(l => l.creator === state.currentUser.username);
+  const baseUrl = window.location.href.split('?')[0].split('#')[0];
+  const obsUrl = activeTour ? `${baseUrl}?obs=${activeTour.id}` : '';
+
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar">
+        <div>
+          <div class="eyebrow">ORGANİZATÖR YÖNETİMİ</div>
+          <h2 class="section-title">Turnuva Paneli</h2>
+        </div>
+        <button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button>
+      </div>
+
+      ${myIdLogs.length > 0 ? `
+        <div class="card" style="padding:18px; margin-bottom:18px;">
+          <h3 style="margin-bottom:10px;">🚨 Oyuncu ID Değişiklik Bildirimleri</h3>
+          <div class="lfg-list">
+            ${myIdLogs.map(log => `
+              <div class="blink-id-alert">
+                <strong>${escapeHtml(log.teamName)} · ${escapeHtml(log.slotLabel)} (${escapeHtml(log.phase)})</strong>
+                <div style="font-size:13px; margin-top:3px;">
+                  Eski ID: <span style="text-decoration:line-through; color:#fda4af;">${escapeHtml(log.oldId)}</span> →
+                  Yeni ID: <span style="color:#34d399; font-weight:900;">${escapeHtml(log.newId)}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="card" style="padding:20px; margin-bottom:20px;">
+        <h3 style="margin-bottom:12px;">Yeni Turnuva Aç</h3>
+        <form onsubmit="createOrganizerTournament(event)">
+          <div class="form-grid-2">
+            <div class="form-group"><label>Turnuva İsmi</label><input class="input" name="title" required placeholder="N113"></div>
+            <div class="form-group"><label>Kaç Maç Olacak?</label><input class="input" name="matches" type="number" min="1" max="15" value="4" required></div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group"><label>Giriş Ücreti (V)</label><input class="input" name="entryFee" type="number" min="0" value="0" required></div>
+            <div class="form-group"><label>Ödül Havuzu</label><input class="input" name="prizePool" required placeholder="500 ₺"></div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Oda Türü</label>
+              <select class="select" name="roomType">
+                <option value="E-spor odalı">E-spor odalı</option>
+                <option value="Gelişmiş oda">Gelişmiş oda</option>
+                <option value="Normal oda">Normal oda</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Odaya Giriş Yöntemi</label>
+              <select class="select" name="joinMethod">
+                <option value="Arkadaş Ekleyerek">Arkadaş Ekleyerek</option>
+                <option value="Oda Kodu & Şifre">Oda Kodu & Şifre ile</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Yayın Durumu</label>
+              <select class="select" name="isStreamed">
+                <option value="true">Yayınlı</option>
+                <option value="false">Yayınsız</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Maksimum Takım (Max 23)</label><input class="input" name="maxTeams" type="number" min="2" max="23" value="23" required></div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group"><label>Tarih</label><input class="input" name="date" type="date" value="2026-11-22" required></div>
+            <div class="form-group"><label>Saat</label><input class="input" name="time" type="time" value="23:30" required></div>
+          </div>
+          <div class="form-group"><label>Kurallar</label><textarea class="textarea" name="rules" rows="2" required></textarea></div>
+          <button class="btn btn-primary" style="width:100%;" type="submit">Turnuvayı Yayınla</button>
+        </form>
+      </div>
+
+      ${activeTour ? `
+        <div class="card" style="padding:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+            <div>
+              <div class="eyebrow">TURNUVA YÖNETİMİ</div>
+              <h3 style="font-size:19px; font-weight:800;">${escapeHtml(activeTour.title)} (${activeTour.status})</h3>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              ${myTours.map(mt => `<button class="pill ${mt.id === activeTour.id ? 'active' : ''}" onclick="selectedOrganizerTourId='${mt.id}'; renderAll(false);">${escapeHtml(mt.title)}</button>`).join('')}
+              ${activeTour.status === 'open' ? `<button class="btn btn-primary" onclick="setTourLive('${activeTour.id}')">Canlıya Al</button>` : ''}
+              ${activeTour.status !== 'completed' ? `<button class="btn btn-secondary" onclick="finishTournament('${activeTour.id}')">Turnuvayı Bitir</button>` : ''}
+            </div>
+          </div>
+
+          <form onsubmit="saveOrganizerCenterDetails(event, '${activeTour.id}')" style="margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Oda Bilgisi (Oda ID / Şifre veya Arkadaş Ekleme Nicki)</label>
+                <textarea class="textarea" name="roomInfoText" rows="2" placeholder="Örn: Oda ID: 849201 · Şifre: NVL26">${escapeHtml(activeTour.roomInfoText || '')}</textarea>
+              </div>
+              <div class="form-group">
+                <label>Atlayış Bölgeleri</label>
+                <textarea class="textarea" name="dropZonesText" rows="2" placeholder="Örn: Slot 1: Pochinki · Slot 2: Georgopol">${escapeHtml(activeTour.dropZonesText || '')}</textarea>
+              </div>
+            </div>
+            <button class="btn btn-secondary" type="submit">Oda & Atlayış Bilgilerini Kaydet</button>
+          </form>
+
+          <div style="background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:18px;">
+            <div class="eyebrow">OBS CANLI YAYIN EKRANI</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+              <input class="input" style="flex:1; min-width:220px;" readonly value="${escapeAttr(obsUrl)}">
+              <button class="btn btn-secondary" type="button" onclick="navigator.clipboard?.writeText('${escapeAttr(obsUrl)}'); showToast('OBS yayın linki kopyalandı!');">Linki Kopyala</button>
+              <button class="btn btn-primary" type="button" onclick="activeTournamentPageId='${activeTour.id}'; navigate('obs_preview');">OBS Ekranını Aç</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:12px;">
+              <label style="font-size:13px; font-weight:700;">Yayında Gösterilen Aktif Maç:</label>
+              <select class="select" style="max-width:160px;" onchange="setTournamentCurrentMatch('${activeTour.id}', this.value)">
+                ${Array.from({ length: Number(activeTour.matches || 1) }, (_, idx) => idx + 1).map(m => `
+                  <option value="${m}" ${Number(activeTour.currentMatch || 1) === m ? 'selected' : ''}>Maç #${m}</option>
+                `).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <h4 style="margin-bottom:8px;">Bekleyen Katılma İstekleri (${(activeTour.pendingTeams || []).length})</h4>
+            ${(activeTour.pendingTeams || []).length === 0 ? `<div class="empty-box" style="padding:12px;">Bekleyen istek yok.</div>` : `
+              <div class="lfg-list">
+                ${activeTour.pendingTeams.map(tid => {
+                  const tm = state.teams.find(x => x.id === tid);
+                  return `
+                    <div class="lfg-item">
+                      <div style="display:flex; align-items:center; gap:10px;">
+                        ${renderTeamLogoHtml(tm, 34)}
+                        <strong>${tm ? escapeHtml(tm.name) : tid}</strong>
+                      </div>
+                      <button class="btn btn-success" onclick="approveTeamJoinRequest('${activeTour.id}', '${tid}')">Onayla ve Slota Al</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+
+          <div>
+            <h4 style="margin-bottom:8px;">Puan Tablosu (Maç Bazlı Sıra & Kill)</h4>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              ${Array.from({ length: Number(activeTour.matches || 1) }, (_, idx) => idx + 1).map(mNo => `
+                <button class="pill ${selectedOrganizerMatchNo === mNo ? 'active' : ''}" onclick="selectedOrganizerMatchNo=${mNo}; renderAll(false);">Maç #${mNo}</button>
+              `).join('')}
+            </div>
+
+            ${activeTour.status !== 'live' && activeTour.status !== 'completed' ? `
+              <div class="empty-box" style="padding:14px;">Turnuva canlıya geçtiğinde puan girişi açılır.</div>
+            ` : (activeTour.joinedTeams || []).length === 0 ? `
+              <div class="empty-box" style="padding:14px;">Slotta onaylı takım yok.</div>
+            ` : `
+              <form onsubmit="saveMatchScores(event, '${activeTour.id}', ${selectedOrganizerMatchNo})">
+                <table class="score-table">
+                  <thead><tr><th>Takım</th><th>Sıra (1-23)</th><th>Kill</th></tr></thead>
+                  <tbody>
+                    ${activeTour.joinedTeams.map(tid => {
+                      const tm = state.teams.find(x => x.id === tid);
+                      const existing = activeTour.matchScores?.[selectedOrganizerMatchNo]?.[tid] || { rank: '', kills: '' };
+                      return `
+                        <tr>
+                          <td><strong>${tm ? escapeHtml(tm.name) : tid}</strong></td>
+                          <td><input class="input" style="max-width:110px;" type="number" min="1" max="23" name="rank_${tid}" value="${escapeAttr(String(existing.rank ?? ''))}"></td>
+                          <td><input class="input" style="max-width:110px;" type="number" min="0" name="kills_${tid}" value="${escapeAttr(String(existing.kills ?? ''))}"></td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+                <button class="btn btn-primary" style="margin-top:12px; width:100%;" type="submit">Maç #${selectedOrganizerMatchNo} Skorlarını Kaydet</button>
+              </form>
+            `}
+          </div>
+        </div>
+      ` : ''}
+    </section>
+  `;
+}
+
+async function createOrganizerTournament(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const tr = {
+    id: 'tr_' + Date.now(),
+    title: fd.get('title').trim(),
+    creator: state.currentUser.username,
+    matches: Number(fd.get('matches')) || 4,
+    currentMatch: 1,
+    entryFee: Number(fd.get('entryFee')) || 0,
+    prizePool: fd.get('prizePool').trim(),
+    roomType: fd.get('roomType'),
+    joinMethod: fd.get('joinMethod'),
+    isStreamed: fd.get('isStreamed') === 'true',
+    maxTeams: Math.min(23, Math.max(2, Number(fd.get('maxTeams')) || 23)),
+    date: fd.get('date'),
+    time: fd.get('time'),
+    rules: fd.get('rules').trim(),
+    roomInfoText: '',
+    dropZonesText: '',
+    pendingTeams: [],
+    joinedTeams: [],
+    matchScores: {},
+    chatClosed: false,
+    status: 'open'
+  };
+  selectedOrganizerTourId = tr.id;
+  await commitSharedMutation(s => {
+    s.tournaments.unshift(tr);
+  });
+  showToast('Turnuva anında yayınlandı!');
+}
+
+async function saveOrganizerCenterDetails(e, tourId) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await commitSharedMutation(s => {
+    const tour = s.tournaments.find(t => t.id === tourId);
+    if (!tour) return;
+    tour.roomInfoText = fd.get('roomInfoText').trim();
+    tour.dropZonesText = fd.get('dropZonesText').trim();
+  });
+  showToast('Oda bilgisi ve atlayış bölgeleri kaydedildi.');
+}
+
+async function setTournamentCurrentMatch(tourId, matchNo) {
+  await commitSharedMutation(s => {
+    const tour = s.tournaments.find(t => t.id === tourId);
+    if (tour) tour.currentMatch = Number(matchNo) || 1;
+  });
+  showToast(`Aktif maç Maç #${matchNo} olarak güncellendi.`);
+}
+
+async function finishTournament(tourId) {
+  await commitSharedMutation(s => {
+    const tour = s.tournaments.find(t => t.id === tourId);
+    if (tour) tour.status = 'completed';
+  });
+  showToast('Turnuva bitirildi ve ana sayfada Bitti olarak güncellendi.');
+}
+
+async function approveTeamJoinRequest(tourId, teamId) {
+  await commitSharedMutation(s => {
+    const tour = s.tournaments.find(t => t.id === tourId);
+    const team = s.teams.find(t => t.id === teamId);
+    if (!tour || !team) return;
+    tour.pendingTeams = (tour.pendingTeams || []).filter(id => id !== teamId);
+    tour.joinedTeams = tour.joinedTeams || [];
+    if (!tour.joinedTeams.includes(teamId)) tour.joinedTeams.push(teamId);
+    if (!s.tournamentRosters[`${tourId}_${teamId}`]) {
+      s.tournamentRosters[`${tourId}_${teamId}`] = { mainIds: ['', '', '', ''], subIds: ['', ''], subSwapsUsed: 0 };
+    }
+    pushNotificationToTarget(s, team.ownerUsername, `"${tour.title}" turnuvasına onay aldınız, ID'lerinizi girin.`);
+  });
+  showToast('Ekip onaylandı ve bildirim gönderildi!');
+}
+
+async function setTourLive(tourId) {
+  await commitSharedMutation(s => {
+    const tour = s.tournaments.find(t => t.id === tourId);
+    if (tour) tour.status = 'live';
+  });
+  showToast('Turnuva canlıya alındı!');
+}
+
+async function saveMatchScores(e, tourId, matchNo) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await commitSharedMutation(s => {
+    const tour = s.tournaments.find(t => t.id === tourId);
+    if (!tour) return;
+    tour.matchScores = tour.matchScores || {};
+    tour.matchScores[matchNo] = {};
+    (tour.joinedTeams || []).forEach(tid => {
+      const r = fd.get(`rank_${tid}`);
+      const k = fd.get(`kills_${tid}`);
+      tour.matchScores[matchNo][tid] = { rank: r === '' ? '' : Number(r), kills: k === '' ? '' : Number(k) };
+    });
+    if (areAllTournamentScoresCompleted(tour)) tour.status = 'completed';
+  });
+  showToast(`Maç #${matchNo} skorları canlı olarak yansıtıldı.`);
+}
+
+/* TAKIMIM */
+function renderTeamPage(root) {
+  if (!state.currentUser) {
+    root.innerHTML = `<section class="page-section"><div class="empty-box"><p style="margin-bottom:10px;">Giriş yapın.</p><button class="btn btn-primary" onclick="openAuthModal('login')">Giriş Yap</button></div></section>`;
+    return;
+  }
+  if (state.currentUser.canCreateTournament) { navigate('home'); return; }
+
+  const myTeam = getUserTeam(state.currentUser.username);
+  if (!myTeam) {
+    root.innerHTML = `
+      <section class="page-section" style="max-width:560px; margin:0 auto;">
+        <div class="card" style="padding:22px; margin-bottom:18px;">
+          <div class="eyebrow">YENİ TAKIM KUR (ÜYE BAŞINA 1 TAKIM)</div>
+          <h2 class="section-title" style="margin-bottom:12px;">Takım Oluştur</h2>
+          <form onsubmit="createTeamWithInvite(event)">
+            <div class="form-group"><label>Takım Adı</label><input class="input" name="name" required></div>
+            <div class="form-group"><label>Tag</label><input class="input" name="tag" maxlength="5" required></div>
+            <div class="form-group"><label>Takım Logosu (URL — İsteğe bağlı)</label><input class="input" name="logoUrl" placeholder="https://..."></div>
+            <button class="btn btn-primary" style="width:100%;" type="submit">Takımı Kur</button>
+          </form>
+        </div>
+
+        <div class="card" style="padding:22px;">
+          <div class="eyebrow">DAVET KODU İLE KATIL</div>
+          <form onsubmit="joinTeamByCode(event)">
+            <div class="form-group"><label>Davet Kodu</label><input class="input" name="code" required placeholder="NVL-1234"></div>
+            <div class="form-group">
+              <label>Kadro</label>
+              <select class="select" name="slotType">
+                <option value="main">Ana Kadro (4)</option>
+                <option value="sub">Yedek Kadro (2)</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary" style="width:100%;" type="submit">Takıma Katıl</button>
+          </form>
+        </div>
+      </section>
+    `;
+    return;
+  }
+
+  const isOwner = myTeam.ownerUsername === state.currentUser.username;
+  const joinedFriendTours = state.tournaments.filter(t => (t.joinedTeams || []).includes(myTeam.id) && t.joinMethod === 'Arkadaş Ekleyerek');
+  if (joinedFriendTours.length > 0 && (!selectedTeamTourId || !joinedFriendTours.some(x => x.id === selectedTeamTourId))) {
+    selectedTeamTourId = joinedFriendTours[0].id;
+  }
+  const activeFriendTour = joinedFriendTours.find(x => x.id === selectedTeamTourId) || null;
+  const tChatMsgs = state.teamChats[myTeam.id] || [];
+  const inTeamVoice = state.activeVoiceChannel?.type === 'team' && state.activeVoiceChannel?.id === myTeam.id;
+
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar">
+        <div style="display:flex; align-items:center; gap:14px;">
+          ${renderTeamLogoHtml(myTeam, 54)}
+          <div>
+            <div class="eyebrow">● TAKIMIM</div>
+            <h2 class="section-title">${escapeHtml(myTeam.name)} [${escapeHtml(myTeam.tag)}]</h2>
+            <p class="section-sub">Sabit Davet Kodu: <strong>${escapeHtml(myTeam.inviteCode)}</strong></p>
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button>
+      </div>
+
+      ${isOwner ? `
+        <div class="card" style="padding:18px; margin-bottom:18px;">
+          <h3 style="font-size:16px; margin-bottom:10px;">🖼️ Takım Logosu Ekle / Güncelle</h3>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <input type="file" accept="image/*" onchange="uploadTeamLogoFile(event, '${myTeam.id}')" style="font-size:13px;">
+            <form onsubmit="saveTeamLogoUrl(event, '${myTeam.id}')" style="display:flex; gap:8px; flex:1; min-width:240px;">
+              <input class="input" name="logoUrl" value="${escapeAttr(myTeam.logoUrl || '')}" placeholder="veya Logo Resim URL yapıştır...">
+              <button class="btn btn-primary" type="submit">Logoyu Kaydet</button>
+            </form>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="two-col" style="margin-top:0;">
+        <div class="card" style="padding:18px;">
+          <h3 style="margin-bottom:10px;">Ana Kadro (4)</h3>
+          <div class="lfg-list" style="margin-bottom:14px;">
+            ${(myTeam.mainPlayers || []).map(p => `
+              <div class="lfg-item">
+                <button class="link-btn" onclick="openUserProfileModal('${escapeAttr(p.username)}')">@${escapeHtml(p.username)}</button>
+                ${isOwner && p.username !== myTeam.ownerUsername ? `<button class="btn btn-secondary" onclick="kickTeamMember('${myTeam.id}', '${escapeAttr(p.username)}')">At & Kod Yenile</button>` : ''}
+              </div>
+            `).join('')}
+          </div>
+
+          <h3 style="margin-bottom:10px;">Yedek Kadro (2)</h3>
+          <div class="lfg-list">
+            ${(myTeam.subPlayers || []).length === 0 ? `<div class="empty-box" style="padding:12px;">Yedek oyuncu yok.</div>` : myTeam.subPlayers.map(p => `
+              <div class="lfg-item">
+                <button class="link-btn" onclick="openUserProfileModal('${escapeAttr(p.username)}')">@${escapeHtml(p.username)}</button>
+                ${isOwner ? `<button class="btn btn-secondary" onclick="kickTeamMember('${myTeam.id}', '${escapeAttr(p.username)}')">At & Kod Yenile</button>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card" style="padding:18px;">
+            <h3 style="margin-bottom:6px;">🔊 Takım Ses Kanalı</h3>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+              <button class="btn ${inTeamVoice ? 'btn-primary' : 'btn-success'}" onclick="toggleTeamVoice('${myTeam.id}')">${inTeamVoice ? 'Ayrıl' : 'Takım Sesine Katıl'}</button>
+              <button class="btn btn-secondary" onclick="toggleMic()">${state.micEnabled ? '🎤 Mikrofon Açık' : '🔇 Mikrofon Kapalı'}</button>
+              <button class="btn btn-secondary" onclick="toggleSpeaker()">${state.speakerEnabled ? '🔊 Hoparlör Açık' : '🔈 Hoparlör Kapalı'}</button>
+            </div>
+          </div>
+
+          <div class="card chat-box">
+            <h3>💬 Takım Sohbeti</h3>
+            <div class="chat-messages">
+              ${tChatMsgs.length === 0 ? `<div class="empty-box" style="padding:14px;">Mesaj yok.</div>` : tChatMsgs.map(m => `
+                <div class="msg-row"><div class="msg-head"><span class="msg-author">@${escapeHtml(m.author)}</span><span class="msg-time">${escapeHtml(m.time)}</span></div><div>${escapeHtml(m.text)}</div></div>
+              `).join('')}
+            </div>
+            <form class="chat-form" onsubmit="sendTeamChat(event, '${myTeam.id}')">
+              <input class="input" id="teamChatInput" placeholder="Takım chatine yaz..." required>
+              <button class="btn btn-primary" type="submit">Gönder</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      ${activeFriendTour ? renderFriendTournamentIdCard(activeFriendTour, myTeam) : ''}
+    </section>
+  `;
+}
+
+function uploadTeamLogoFile(e, teamId) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    await commitSharedMutation(s => {
+      const tm = s.teams.find(t => t.id === teamId);
+      if (tm) tm.logoUrl = reader.result;
+    });
+    showToast('Takım logosu yüklendi!');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveTeamLogoUrl(e, teamId) {
+  e.preventDefault();
+  const url = new FormData(e.target).get('logoUrl').trim();
+  await commitSharedMutation(s => {
+    const tm = s.teams.find(t => t.id === teamId);
+    if (tm) tm.logoUrl = url;
+  });
+  showToast('Takım logosu güncellendi!');
+}
+
+function renderFriendTournamentIdCard(tour, myTeam) {
+  const rKey = `${tour.id}_${myTeam.id}`;
+  const roster = state.tournamentRosters[rKey] || { mainIds: ['', '', '', ''], subIds: ['', ''], subSwapsUsed: 0 };
+  const startMs = new Date(`${tour.date}T${tour.time}:00`).getTime();
+  const now = Date.now();
+  const isLive = tour.status === 'live' || (!Number.isNaN(startMs) && now >= startMs);
+  const locked2h = !isLive && !Number.isNaN(startMs) && (startMs - now) <= 2 * 60 * 60 * 1000;
+  const remSubs = Math.max(0, 2 - (roster.subSwapsUsed || 0));
+  const canMain = !isLive && !locked2h && tour.status !== 'completed';
+  const canSub = (!isLive && !locked2h && tour.status !== 'completed') || (isLive && remSubs > 0);
+
+  return `
+    <div class="card" style="padding:20px; margin-top:20px;">
+      <div class="eyebrow">TURNUVA KADRO ID YÖNETİMİ</div>
+      <h3 style="margin-bottom:8px;">${escapeHtml(tour.title)}</h3>
+      <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
+        ${isLive ? `CANLI — Sadece 2 yedek ID değiştirilebilir (Kalan hak: ${remSubs}/2).` :
+          locked2h ? '🔒 Turnuvaya 2 saatten az kaldığı için kilitli.' :
+          'Turnuvaya 2 saat kalana kadar 4 Ana + 2 Yedek ID girebilirsiniz.'}
+      </p>
+      <form onsubmit="saveTeamRosterIds(event, '${tour.id}', '${myTeam.id}')">
+        <div class="form-grid-2">
+          ${[0,1,2,3].map(i => `<div class="form-group"><label>Ana Kadro #${i+1} ID</label><input class="input" name="m_${i}" value="${escapeAttr(roster.mainIds[i] || '')}" ${!canMain ? 'disabled' : ''}></div>`).join('')}
+          ${[0,1].map(i => `<div class="form-group"><label>Yedek Kadro #${i+1} ID</label><input class="input" name="s_${i}" value="${escapeAttr(roster.subIds[i] || '')}" ${!canSub ? 'disabled' : ''}></div>`).join('')}
+        </div>
+        <button class="btn btn-primary" style="width:100%;" type="submit" ${(!canMain && !canSub) ? 'disabled' : ''}>ID Bilgilerini Kaydet</button>
+      </form>
+    </div>
+  `;
+}
+
+async function saveTeamRosterIds(e, tourId, teamId) {
+  e.preventDefault();
+  const tour = state.tournaments.find(t => t.id === tourId);
+  const team = state.teams.find(t => t.id === teamId);
+  if (!tour || !team) return;
+  const rKey = `${tourId}_${teamId}`;
+  const startMs = new Date(`${tour.date}T${tour.time}:00`).getTime();
+  const isLive = tour.status === 'live' || (!Number.isNaN(startMs) && Date.now() >= startMs);
+  const fd = new FormData(e.target);
+  const nowStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+  let blocked = false;
+  await commitSharedMutation(s => {
+    const roster = s.tournamentRosters[rKey] || { mainIds: ['', '', '', ''], subIds: ['', ''], subSwapsUsed: 0 };
+    if (!isLive) {
+      for (let i = 0; i < 4; i++) {
+        const oldV = (roster.mainIds[i] || '').trim();
+        const newV = (fd.get(`m_${i}`) || '').trim();
+        if (oldV !== newV && oldV) {
+          s.idChangeLogs.unshift({ id: 'idl_' + Date.now() + '_m' + i, creator: tour.creator, teamName: team.name, slotLabel: `Ana #${i + 1}`, oldId: oldV, newId: newV, phase: 'Maç Öncesi', time: nowStr });
+        }
+        roster.mainIds[i] = newV;
+      }
+      for (let i = 0; i < 2; i++) {
+        const oldV = (roster.subIds[i] || '').trim();
+        const newV = (fd.get(`s_${i}`) || '').trim();
+        if (oldV !== newV && oldV) {
+          s.idChangeLogs.unshift({ id: 'idl_' + Date.now() + '_s' + i, creator: tour.creator, teamName: team.name, slotLabel: `Yedek #${i + 1}`, oldId: oldV, newId: newV, phase: 'Maç Öncesi', time: nowStr });
+        }
+        roster.subIds[i] = newV;
+      }
+    } else {
+      let changes = 0;
+      const nextSubs = [...roster.subIds];
+      for (let i = 0; i < 2; i++) {
+        const oldV = (roster.subIds[i] || '').trim();
+        const newV = (fd.get(`s_${i}`) || '').trim();
+        if (oldV !== newV) { changes++; nextSubs[i] = newV; }
+      }
+      if ((roster.subSwapsUsed || 0) + changes > 2) {
+        blocked = true;
+        return;
+      }
+      for (let i = 0; i < 2; i++) {
+        const oldV = (roster.subIds[i] || '').trim();
+        const newV = nextSubs[i];
+        if (oldV !== newV) {
+          s.idChangeLogs.unshift({ id: 'idl_' + Date.now() + '_lv' + i, creator: tour.creator, teamName: team.name, slotLabel: `Yedek #${i + 1}`, oldId: oldV || '(Boş)', newId: newV || '(Boş)', phase: 'CANLI', time: nowStr });
+        }
+      }
+      roster.subIds = nextSubs;
+      roster.subSwapsUsed = (roster.subSwapsUsed || 0) + changes;
+    }
+    s.tournamentRosters[rKey] = roster;
+  });
+
+  if (blocked) {
+    showToast('En fazla 2 yedek ID değişikliği yapılabilir.');
+  } else {
+    showToast('ID bilgileri kaydedildi ve organizatöre anında iletildi.');
+  }
+}
+
+async function createTeamWithInvite(e) {
+  e.preventDefault();
+  if (getUserTeam(state.currentUser.username)) return;
+  const fd = new FormData(e.target);
+  const code = 'NVL-' + Math.floor(1000 + Math.random() * 9000);
+  await commitSharedMutation(s => {
+    s.teams.push({
+      id: 'tm_' + Date.now(),
+      ownerUsername: state.currentUser.username,
+      name: fd.get('name').trim(),
+      tag: fd.get('tag').trim().toUpperCase(),
+      logoUrl: (fd.get('logoUrl') || '').trim(),
+      inviteCode: code,
+      mainPlayers: [{ username: state.currentUser.username }],
+      subPlayers: []
+    });
+  });
+  showToast(`Takım kuruldu! Davet kodunuz: ${code}`);
+}
+
+async function joinTeamByCode(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const code = fd.get('code').trim().toUpperCase();
+  const slotType = fd.get('slotType');
+  let errMsg = '';
+  await commitSharedMutation(s => {
+    const tm = s.teams.find(t => t.inviteCode === code);
+    if (!tm) { errMsg = 'Geçersiz davet kodu.'; return; }
+    if (slotType === 'main') {
+      if ((tm.mainPlayers || []).length >= 4) { errMsg = 'Ana kadro dolu.'; return; }
+      tm.mainPlayers.push({ username: state.currentUser.username });
+    } else {
+      if ((tm.subPlayers || []).length >= 2) { errMsg = 'Yedek kadro dolu.'; return; }
+      tm.subPlayers.push({ username: state.currentUser.username });
+    }
+  });
+  if (errMsg) showToast(errMsg);
+  else showToast('Takıma katıldınız!');
+}
+
+async function kickTeamMember(teamId, targetUsername) {
+  await commitSharedMutation(s => {
+    const tm = s.teams.find(t => t.id === teamId);
+    if (!tm) return;
+    tm.mainPlayers = (tm.mainPlayers || []).filter(p => p.username !== targetUsername);
+    tm.subPlayers = (tm.subPlayers || []).filter(p => p.username !== targetUsername);
+    tm.inviteCode = 'NVL-' + Math.floor(1000 + Math.random() * 9000);
+  });
+  showToast('Oyuncu atıldı ve davet kodu yenilendi.');
+}
+
+async function sendTeamChat(e, teamId) {
+  e.preventDefault();
+  const inp = document.getElementById('teamChatInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  await commitSharedMutation(s => {
+    s.teamChats[teamId] = s.teamChats[teamId] || [];
+    s.teamChats[teamId].push({ author: state.currentUser.username, text, time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) });
+  });
+}
+
+/* TOPLULUK & SES KANALLARI */
+function renderCommunityPage(root) {
+  const totalInVoice = state.forumVoiceChannels.reduce((s, c) => s + (c.users || []).length, 0);
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar">
+        <div><div class="eyebrow">● TOPLULUK</div><h2 class="section-title">Topluluk</h2></div>
+        <button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button>
+      </div>
+
+      <div class="card" style="padding:18px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <div class="eyebrow">SESLİ SOHBET ODALARI</div>
+          <h3 style="font-size:18px; font-weight:800;">🔊 Ses Kanalları (5 Kanal · 20 Kişilik)</h3>
+          <small style="color:var(--text-muted);">Şu an ses kanallarında ${totalInVoice} üye aktif</small>
+        </div>
+        <button class="btn btn-primary" onclick="navigate('voice_channels')">Ses Kanallarına Git →</button>
+      </div>
+
+      <div class="card chat-box">
+        <h3 style="font-size:17px; font-weight:800;">💬 NVL Forum</h3>
+        <div class="chat-messages">
+          ${state.forumMessages.length === 0 ? `<div class="empty-box">Henüz mesaj yok.</div>` : state.forumMessages.map(m => `
+            <div class="msg-row">
+              <div class="msg-head">
+                <button class="link-btn msg-author" onclick="openUserProfileModal('${escapeAttr(m.author)}')">@${escapeHtml(m.author)}</button>
+                <span class="msg-time">${escapeHtml(m.time)}</span>
+              </div>
+              <div>${escapeHtml(m.text)}</div>
+            </div>
+          `).join('')}
+        </div>
+        <form class="chat-form" onsubmit="sendForumChat(event)">
+          <input class="input" id="forumChatInput" placeholder="Forum mesajı yaz..." required>
+          <button class="btn btn-primary" type="submit">Gönder</button>
+        </form>
+      </div>
+    </section>
+  `;
+}
+
+function renderVoiceChannelsPage(root) {
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar">
+        <div><div class="eyebrow">● SESLİ SOHBET</div><h2 class="section-title">Ses Kanalları</h2></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="toggleMic()">${state.micEnabled ? '🎤 Mikrofon Açık' : '🔇 Mikrofon Kapalı'}</button>
+          <button class="btn btn-secondary" onclick="toggleSpeaker()">${state.speakerEnabled ? '🔊 Hoparlör Açık' : '🔈 Hoparlör Kapalı'}</button>
+          <button class="btn btn-secondary" onclick="navigate('community')">← Topluluk</button>
+        </div>
+      </div>
+
+      <div class="tour-grid">
+        ${state.forumVoiceChannels.map(vc => {
+          const users = vc.users || [];
+          const joinedHere = state.activeVoiceChannel?.type === 'forum' && state.activeVoiceChannel?.id === vc.id;
+          return `
+            <div class="card" style="padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <strong>🔊 ${escapeHtml(vc.name)}</strong>
+                  <span style="font-size:12px; color:var(--text-muted);">${users.length} / 20</span>
+                </div>
+                ${users.length === 0 ? `<div class="empty-box" style="padding:14px;">Kanal boş</div>` : `
+                  <div class="lfg-list">
+                    ${users.map(u => `
+                      <div class="lfg-item">
+                        <button class="link-btn" onclick="openUserProfileModal('${escapeAttr(u)}')">@${escapeHtml(u)}</button>
+                        <span style="font-size:11px; color:var(--success);">● Seste</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </div>
+              <button class="btn ${joinedHere ? 'btn-primary' : 'btn-success'}" style="width:100%;" onclick="toggleForumVoice('${vc.id}')">
+                ${joinedHere ? 'Kanaldan Ayrıl' : 'Kanala Katıl'}
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  `;
+}
+
+async function toggleForumVoice(vcId) {
+  if (!state.currentUser) { openAuthModal('login'); return; }
+  const me = state.currentUser.username;
+  const leaving = session.activeVoiceChannel?.type === 'forum' && session.activeVoiceChannel?.id === vcId;
+  let full = false;
+
+  await commitSharedMutation(s => {
+    s.forumVoiceChannels.forEach(vc => { vc.users = (vc.users || []).filter(u => u !== me); });
+    if (leaving) {
+      session.activeVoiceChannel = null;
+    } else {
+      const target = s.forumVoiceChannels.find(v => v.id === vcId);
+      if (!target || (target.users || []).length >= 20) { full = true; return; }
+      target.users.push(me);
+      session.activeVoiceChannel = { type: 'forum', id: vcId };
+    }
+    saveSession();
+  });
+
+  if (full) showToast('Kanal dolu.');
+}
+
+function toggleTeamVoice(teamId) {
+  if (!state.currentUser) { openAuthModal('login'); return; }
+  session.activeVoiceChannel = (session.activeVoiceChannel?.type === 'team' && session.activeVoiceChannel?.id === teamId)
+    ? null : { type: 'team', id: teamId };
+  saveSession();
+  renderAll(false);
+}
+
+function toggleMic() { session.micEnabled = !session.micEnabled; saveSession(); renderAll(false); }
+function toggleSpeaker() { session.speakerEnabled = !session.speakerEnabled; saveSession(); renderAll(false); }
+
+async function sendForumChat(e) {
+  e.preventDefault();
+  if (!state.currentUser) { openAuthModal('login'); return; }
+  const inp = document.getElementById('forumChatInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  await commitSharedMutation(s => {
+    s.forumMessages.push({
+      id: 'fm_' + Date.now(),
+      author: state.currentUser.username,
+      text,
+      time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    });
+  });
+}
+
+/* ROZETLER */
+function renderShieldSvg(primary, secondary, crown = false, plus = false) {
+  return `
+    <svg width="82" height="90" viewBox="0 0 86 94" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M43 6L74 18V45C74 66 60.5 81 43 88C25.5 81 12 66 12 45V18L43 6Z" fill="${secondary}" stroke="${primary}" stroke-width="3.5"/>
+      <path d="M43 13L67 22.5V44.5C67 61.5 56.5 74 43 79.8C29.5 74 19 61.5 19 44.5V22.5L43 13Z" fill="#0E1219" stroke="${primary}" stroke-width="1.5" stroke-opacity="0.7"/>
+      <path d="M30 33L43 63L56 33H49L43 48L37 33H30Z" fill="${primary}"/>
+      ${crown ? `<path d="M31 19L36 12L43 18L50 12L55 19H31Z" fill="${primary}"/>` : ''}
+      ${plus ? `<rect x="61" y="13" width="16" height="16" rx="4" fill="#E11D48"/><path d="M69 16V26M64 21H74" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>` : ''}
+    </svg>
+  `;
+}
+
+function renderBadgesPage(root) {
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar">
+        <div>
+          <div class="eyebrow">01 / TOPLULUK</div>
+          <h2 class="section-title">Kullanıcı rozetleri</h2>
+        </div>
+        <button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button>
+      </div>
+      <div class="badges-grid">
+        ${USER_BADGE_CATALOG.map(b => `
+          <article class="badge-card">
+            <div>
+              <div class="badge-card-top"><span>${b.cat}</span><span class="badge-num">${b.num}</span></div>
+              <div class="badge-emblem-wrap">${renderShieldSvg(b.primary, b.secondary, b.crown, b.plus)}</div>
+              <h3 style="font-size:17px; font-weight:800; margin-bottom:4px;">${b.title}</h3>
+              <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">${b.desc}</p>
+            </div>
+            <div class="badge-req"><span style="color:var(--accent);">✓</span><span>${b.req}</span></div>
+          </article>
+        `).join('')}
+      </div>
+
+      <div class="subpage-bar" style="margin-top:38px;">
+        <div>
+          <div class="eyebrow">02 / TAKIMLAR</div>
+          <h2 class="section-title">Takım rozetleri</h2>
+        </div>
+      </div>
+      <div class="badges-grid">
+        ${TEAM_BADGE_CATALOG.map(b => `
+          <article class="badge-card">
+            <div>
+              <div class="badge-card-top"><span>${b.cat}</span><span class="badge-num">${b.num}</span></div>
+              <div class="badge-emblem-wrap">${renderShieldSvg(b.primary, b.secondary, b.crown, b.plus)}</div>
+              <h3 style="font-size:17px; font-weight:800; margin-bottom:4px;">${b.title}</h3>
+              <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">${b.desc}</p>
+            </div>
+            <div class="badge-req"><span style="color:var(--accent);">✓</span><span>${b.req}</span></div>
+          </article>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+/* PROFİL, DM & BİLDİRİMLER */
+function openUserProfileModal(username) {
+  const u = state.users.find(x => x.username === username);
+  const badges = u?.badges || ['NVL Üye'];
+  openModal(`
+    <div class="modal-head"><h3>@${escapeHtml(username)} — Profil</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>
+    <div style="font-size:13.5px; display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+      <div><strong>Kullanıcı Adı:</strong> @${escapeHtml(username)}</div>
+      <div><strong>PUBG Oyuncu Adı:</strong> ${escapeHtml(u?.pubgName || '-')}</div>
+      <div><strong>Rol:</strong> ${escapeHtml(u?.role || 'Oyuncu')}</div>
+      <div><strong>Rozetler:</strong> ${badges.join(', ')}</div>
+      ${u?.bio ? `<div><strong>Hakkında:</strong> ${escapeHtml(u.bio)}</div>` : ''}
+    </div>
+    ${state.currentUser && state.currentUser.username !== username ? `
+      <button class="btn btn-primary" style="width:100%;" onclick="closeModal(); selectedDmPeer='${escapeAttr(username)}'; navigate('dm');">✉️ DM Mesajı Gönder</button>
+    ` : ''}
+  `);
+}
+
+function renderDmPage(root) {
+  if (!state.currentUser) { navigate('home'); return; }
+  const me = state.currentUser.username;
+  const peers = [...new Set([...(selectedDmPeer ? [selectedDmPeer] : []), ...state.dmMessages.filter(m => m.from === me || m.to === me).map(m => m.from === me ? m.to : m.from)])];
+  if (!selectedDmPeer && peers.length > 0) selectedDmPeer = peers[0];
+  const thread = state.dmMessages.filter(m => (m.from === me && m.to === selectedDmPeer) || (m.from === selectedDmPeer && m.to === me));
+
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar"><div><div class="eyebrow">● DM KUTUSU</div><h2 class="section-title">Mesajlar</h2></div><button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button></div>
+      <div class="card two-col" style="margin-top:0; padding:18px;">
+        <div>
+          <h4 style="margin-bottom:8px;">Sohbetler</h4>
+          <div class="lfg-list">
+            ${peers.map(p => `<button class="lfg-item ${selectedDmPeer === p ? 'pill active' : ''}" onclick="selectedDmPeer='${escapeAttr(p)}'; renderAll(false);"><strong>@${escapeHtml(p)}</strong></button>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div class="chat-messages">
+            ${thread.map(m => `<div class="msg-row"><div class="msg-head"><span class="msg-author">${m.from === me ? 'Sen' : '@' + escapeHtml(m.from)}</span><span class="msg-time">${escapeHtml(m.time)}</span></div><div>${escapeHtml(m.text)}</div></div>`).join('')}
+          </div>
+          ${selectedDmPeer ? `<form class="chat-form" onsubmit="sendDmMsg(event)"><input class="input" id="dmTextInput" placeholder="DM mesajı yaz..." required><button class="btn btn-primary" type="submit">Gönder</button></form>` : ''}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+async function sendDmMsg(e) {
+  e.preventDefault();
+  const inp = document.getElementById('dmTextInput');
+  const text = inp.value.trim();
+  if (!text || !selectedDmPeer) return;
+  inp.value = '';
+  await commitSharedMutation(s => {
+    s.dmMessages.push({ id: 'dm_' + Date.now(), from: state.currentUser.username, to: selectedDmPeer, text, time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) });
+  });
+}
+
+async function openNotificationsModal() {
+  if (!state.currentUser) return;
+  const me = state.currentUser.username;
+  const list = state.notifications[me] || [];
+  if (list.some(n => !n.read)) {
+    await commitSharedMutation(s => {
+      (s.notifications[me] || []).forEach(n => { n.read = true; });
+    });
+  }
+  openModal(`
+    <div class="modal-head"><h3>Bildirimler</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>
+    ${list.length === 0 ? `<div class="empty-box">Bildiriminiz yok.</div>` : `<div class="lfg-list">${list.map(n => `<div class="lfg-item"><div><strong>${escapeHtml(n.text)}</strong><small>${escapeHtml(n.time)}</small></div></div>`).join('')}</div>`}
+  `);
+}
+
+/* AYARLAR SAYFASI */
+function renderSettingsPage(root) {
+  if (!state.currentUser) { navigate('home'); return; }
+  const u = state.currentUser;
+  const q = settingsSearchQuery.trim();
+  const qLow = q.toLowerCase();
+
+  const hl = (text) => {
+    const safe = escapeHtml(text);
+    if (!q) return safe;
+    const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return safe.replace(new RegExp(`(${escapedQ})`, 'gi'), '<span class="search-hl">$1</span>');
+  };
+
+  const icons = {
+    globe: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+    user: `<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    gamepad: `<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="18" cy="13" r="1"/></svg>`,
+    users: `<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    sparkle: `<svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3z"/></svg>`,
+    image: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+    swap: `<svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`,
+    bell: `<svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+    shield: `<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`
+  };
+
+  const sideLinks = [
+    { id: 'lang', label: 'Site dili', icon: icons.globe },
+    { id: 'profile', label: 'Profil ve isim', icon: icons.user },
+    { id: 'social', label: 'Sosyal medya hesapları', icon: icons.globe },
+    { id: 'player_info', label: 'Oyuncu bilgileri', icon: icons.gamepad },
+    { id: 'player_role', label: 'Oyuncu rolü', icon: icons.users },
+    { id: 'customize', label: 'Kişiselleştirme', icon: icons.sparkle },
+    { id: 'username', label: 'Kullanıcı adı', icon: icons.user },
+    { id: 'appearance', label: 'Görünüm', icon: icons.image },
+    { id: 'notifications', label: 'Bildirimler', icon: icons.bell },
+    { id: 'security', label: 'Güvenlik', icon: icons.shield }
+  ];
+
+  const cards = [
+    {
+      id: 'lang',
+      title: 'Site dili',
+      sub: u.siteLanguage || 'Otomatik (cihaz dili)',
+      icon: icons.globe,
+      body: `
+        <form onsubmit="saveUserSettingFields(event, 'Site dili güncellendi.')">
+          <div class="form-group">
+            <label>Arayüz Dili</label>
+            <select class="select" name="siteLanguage">
+              <option value="Otomatik (cihaz dili)" ${(u.siteLanguage || 'Otomatik (cihaz dili)') === 'Otomatik (cihaz dili)' ? 'selected' : ''}>Otomatik (cihaz dili)</option>
+              <option value="Türkçe (TR)" ${u.siteLanguage === 'Türkçe (TR)' ? 'selected' : ''}>Türkçe (TR)</option>
+              <option value="English (EN)" ${u.siteLanguage === 'English (EN)' ? 'selected' : ''}>English (EN)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" type="submit">Kaydet</button>
+        </form>
+      `
+    },
+    {
+      id: 'profile',
+      title: 'Profil',
+      sub: `${u.name || u.username} · @${u.username}`,
+      icon: icons.user,
+      body: `
+        <form onsubmit="saveUserSettingFields(event, 'Profil bilgileri güncellendi.')">
+          <div class="form-group">
+            <label>Görünen İsim</label>
+            <input class="input" name="name" value="${escapeAttr(u.name || u.username)}" required>
+          </div>
+          <div class="form-group">
+            <label>Profil Açıklaması</label>
+            <textarea class="textarea" name="bio" rows="2" maxlength="500" placeholder="Kısa biyografi...">${escapeHtml(u.bio || '')}</textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">Profili Kaydet</button>
+        </form>
+      `
+    },
+    {
+      id: 'social',
+      title: 'Sosyal medya hesapları',
+      sub: (u.instagram || u.tiktok) ? `IG: ${u.instagram || '-'} · TikTok: ${u.tiktok || '-'}` : 'Instagram ve TikTok kullanıcı adların',
+      icon: icons.globe,
+      body: `
+        <form onsubmit="saveUserSettingFields(event, 'Sosyal medya hesapları kaydedildi.')">
+          <div class="form-grid-2">
+            <div class="form-group"><label>Instagram</label><input class="input" name="instagram" value="${escapeAttr(u.instagram || '')}" placeholder="@kullaniciadi"></div>
+            <div class="form-group"><label>TikTok</label><input class="input" name="tiktok" value="${escapeAttr(u.tiktok || '')}" placeholder="@kullaniciadi"></div>
+          </div>
+          <button class="btn btn-primary" type="submit">Hesapları Kaydet</button>
+        </form>
+      `
+    },
+    {
+      id: 'customize',
+      title: 'Profili özelleştir',
+      sub: `Profil kartı teması ve kullanıcı adı görünümü (${u.cardTheme || 'Klasik Arena'})`,
+      icon: icons.image,
+      body: `
+        <form onsubmit="saveUserSettingFields(event, 'Profil özelleştirmesi kaydedildi.')">
+          <div class="form-group">
+            <label>Profil Kartı Teması</label>
+            <select class="select" name="cardTheme">
+              <option value="Klasik Arena" ${(u.cardTheme || 'Klasik Arena') === 'Klasik Arena' ? 'selected' : ''}>Klasik Arena (Koyu Bordo)</option>
+              <option value="Elit Altın" ${u.cardTheme === 'Elit Altın' ? 'selected' : ''}>Elit Altın</option>
+              <option value="Siber Mavi" ${u.cardTheme === 'Siber Mavi' ? 'selected' : ''}>Siber Mavi</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" type="submit">Temayı Uygula</button>
+        </form>
+      `
+    },
+    {
+      id: 'player_role',
+      title: 'Oyuncu rolü',
+      sub: `Takımdaki oyun stilini belirt (${u.role || 'Entry Fragger'})`,
+      icon: icons.gamepad,
+      body: `
+        <form onsubmit="saveUserSettingFields(event, 'Oyuncu rolü güncellendi.')">
+          <div class="form-group">
+            <label>Ana Oyun Rolü</label>
+            <select class="select" name="role">
+              <option value="IGL" ${u.role === 'IGL' ? 'selected' : ''}>IGL (Oyun İçi Lider)</option>
+              <option value="Entry Fragger" ${u.role === 'Entry Fragger' ? 'selected' : ''}>Entry Fragger</option>
+              <option value="Support" ${u.role === 'Support' ? 'selected' : ''}>Support</option>
+              <option value="Sniper / Flex" ${u.role === 'Sniper / Flex' ? 'selected' : ''}>Sniper / Flex</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" type="submit">Rolü Kaydet</button>
+        </form>
+      `
+    },
+    {
+      id: 'username',
+      title: 'Kullanıcı adı',
+      sub: `@${u.username} · profil bağlantını ve etiketlerini belirler`,
+      icon: icons.swap,
+      body: `
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <strong>@${escapeHtml(u.username)}</strong>
+            <small style="display:block; color:var(--text-muted);">Profil bağlantın: nvlgames.gg/@${escapeHtml(u.username)}</small>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="navigator.clipboard?.writeText('nvlgames.gg/@${escapeAttr(u.username)}'); showToast('Profil bağlantısı kopyalandı!');">Bağlantıyı Kopyala</button>
+        </div>
+      `
+    },
+    {
+      id: 'player_info',
+      title: 'Oyuncu bilgileri',
+      sub: `Oyundaki ad: ${u.pubgName || '-'} · ID: ${u.pubgId || '-'}`,
+      icon: icons.gamepad,
+      body: `
+        <form onsubmit="saveUserSettingFields(event, 'PUBG oyuncu bilgileri güncellendi.')">
+          <div class="form-grid-2">
+            <div class="form-group"><label>Oyundaki Adın (PUBG Nick)</label><input class="input" name="pubgName" value="${escapeAttr(u.pubgName || '')}" required></div>
+            <div class="form-group"><label>PUBG Mobile ID</label><input class="input" name="pubgId" value="${escapeAttr(u.pubgId || '')}" required></div>
+          </div>
+          <button class="btn btn-primary" type="submit">Oyuncu Bilgilerini Kaydet</button>
+        </form>
+      `
+    },
+    {
+      id: 'appearance',
+      title: 'Görünüm',
+      sub: state.theme === 'dark' ? 'Karanlık tema açık' : 'Açık (beyaz) tema açık',
+      icon: icons.image,
+      body: `
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn ${state.theme === 'dark' ? 'btn-primary' : 'btn-secondary'}" onclick="applyTheme('dark'); showToast('Karanlık tema aktif edildi.'); renderAll(false);">🌑 Karanlık Tema</button>
+          <button class="btn ${state.theme === 'light' ? 'btn-primary' : 'btn-secondary'}" onclick="applyTheme('light'); showToast('Açık (beyaz) tema aktif edildi.'); renderAll(false);">☀️ Açık Tema (Beyaz)</button>
+        </div>
+      `
+    },
+    {
+      id: 'notifications',
+      title: 'Cihaz bildirimleri',
+      sub: 'Turnuva, takım, duyuru ve sistem bildirimlerini cihazında gör.',
+      icon: icons.bell,
+      body: `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div>
+            <strong>Anlık Bildirimler</strong>
+            <small style="display:block; color:var(--text-muted);">Turnuva onayları, duyurular ve DM bildirimleri anında gösterilir.</small>
+          </div>
+          <button class="btn ${u.deviceNotifications !== false ? 'btn-success' : 'btn-secondary'}" onclick="toggleDeviceNotifications()">
+            ${u.deviceNotifications !== false ? '✓ Bildirimler Açık' : 'Bildirimler Kapalı'}
+          </button>
+        </div>
+      `
+    },
+    {
+      id: 'security',
+      title: 'Güvenlik ve hesap',
+      sub: `E-posta doğrulandı (${u.email || '-'})`,
+      icon: icons.shield,
+      body: `
+        <form onsubmit="changeUserPassword(event)" style="margin-bottom:14px;">
+          <div class="form-group"><label>Yeni Şifre Belirle</label><input class="input" name="newPassword" type="password" minlength="4" required placeholder="Yeni şifreniz"></div>
+          <button class="btn btn-primary" type="submit">Şifreyi Güncelle</button>
+        </form>
+        <div style="padding-top:12px; border-top:1px solid var(--border-soft); display:flex; justify-content:space-between; align-items:center;">
+          <small style="color:var(--text-muted);">Oturumu bu cihazdan kapat</small>
+          <button class="btn btn-secondary" style="color:var(--accent);" onclick="logoutUser()">Hesaptan Çıkış Yap</button>
+        </div>
+      `
+    }
+  ];
+
+  const filteredSide = qLow ? sideLinks.filter(s => s.label.toLowerCase().includes(qLow)) : sideLinks;
+  const filteredCards = qLow ? cards.filter(c => c.title.toLowerCase().includes(qLow) || c.sub.toLowerCase().includes(qLow)) : cards;
+
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="settings-top-head">
+        <div>
+          <div class="eyebrow">HESABIN</div>
+          <h1 class="section-title" style="font-size:32px; font-weight:900;">Ayarlar</h1>
+          <p class="section-sub">Yalnızca değiştirmek istediğin bölümü aç.</p>
+        </div>
+        <button class="btn btn-secondary" onclick="openUserProfileModal('${escapeAttr(u.username)}')">
+          👤 Profili Gör
+        </button>
+      </div>
+
+      <div class="settings-grid-wrap">
+        <aside class="settings-sidebar-card">
+          <div style="font-size:13px; font-weight:800;">Bölüme git</div>
+          <div class="settings-search-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="input" id="settingsSearchInput" value="${escapeAttr(settingsSearchQuery)}" oninput="onSettingsSearchInput(this.value)" placeholder="Ayarlarda ara...">
+          </div>
+
+          <div>
+            ${filteredSide.map(sl => `
+              <button class="settings-nav-item ${activeSettingsNavId === sl.id ? 'active' : ''}" onclick="jumpToSettingsCard('${sl.id}')">
+                ${sl.icon}
+                <span>${hl(sl.label)}</span>
+              </button>
+            `).join('')}
+          </div>
+        </aside>
+
+        <div class="settings-acc-list">
+          ${filteredCards.length === 0 ? `
+            <div class="empty-box">"${escapeHtml(settingsSearchQuery)}" ile eşleşen ayar bölümü bulunamadı.</div>
+          ` : filteredCards.map(c => {
+            const isOpen = openSettingsCardIds.has(c.id) || (qLow.length > 0);
+            return `
+              <div class="settings-acc-item ${isOpen ? 'open' : ''}" id="set_card_${c.id}">
+                <button class="settings-acc-trigger" type="button" onclick="toggleSettingsCard('${c.id}')">
+                  <div class="settings-acc-left">
+                    <div class="settings-icon-box">${c.icon}</div>
+                    <div>
+                      <span class="settings-acc-title">${hl(c.title)}</span>
+                      <span class="settings-acc-sub">${hl(c.sub)}</span>
+                    </div>
+                  </div>
+                  <span style="color:var(--text-muted); font-size:16px;">${isOpen ? '⌄' : '›'}</span>
+                </button>
+                ${isOpen ? `<div class="settings-acc-body">${c.body}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function onSettingsSearchInput(val) {
+  settingsSearchQuery = val;
+  renderAll(true);
+}
+
+function jumpToSettingsCard(id) {
+  activeSettingsNavId = id;
+  openSettingsCardIds.add(id);
+  renderAll(false);
+  const el = document.getElementById(`set_card_${id}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function toggleSettingsCard(id) {
+  activeSettingsNavId = id;
+  if (openSettingsCardIds.has(id)) openSettingsCardIds.delete(id);
+  else openSettingsCardIds.add(id);
+  renderAll(false);
+}
+
+async function saveUserSettingFields(e, toastMsg) {
+  e.preventDefault();
+  if (!state.currentUser) return;
+  const fd = new FormData(e.target);
+  await commitSharedMutation(s => {
+    const u = s.users.find(x => x.username === state.currentUser.username);
+    if (!u) return;
+    for (const [k, v] of fd.entries()) {
+      u[k] = String(v).trim();
+    }
+  });
+  showToast(toastMsg);
+}
+
+async function toggleDeviceNotifications() {
+  if (!state.currentUser) return;
+  await commitSharedMutation(s => {
+    const u = s.users.find(x => x.username === state.currentUser.username);
+    if (u) u.deviceNotifications = !(u.deviceNotifications !== false);
+  });
+  showToast('Bildirim tercihi güncellendi.');
+}
+
+async function changeUserPassword(e) {
+  e.preventDefault();
+  if (!state.currentUser) return;
+  const newPass = new FormData(e.target).get('newPassword');
+  if (!newPass || newPass.length < 4) return;
+  await commitSharedMutation(s => {
+    const u = s.users.find(x => x.username === state.currentUser.username);
+    if (u) u.password = newPass;
+  });
+  e.target.reset();
+  showToast('Hesap şifreniz güncellendi!');
+}
+
+/* ÖDEMELERİM / BAKİYE YÜKLE */
+function renderWalletPage(root) {
+  if (!state.currentUser) { navigate('home'); return; }
+  const u = state.currentUser;
+  const balText = Number(u.balance || 0).toFixed(2).replace('.', ',');
+  const myReqs = state.walletRequests.filter(r => r.username === u.username);
+  const myTxs = (state.transactions || []).filter(t => t.username === u.username);
+
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar">
+        <div>
+          <div class="eyebrow">TAKIM CÜZDANI</div>
+          <h2 class="section-title">Ödemelerim</h2>
+          <p class="section-sub">Bakiyelerin, turnuva ödemelerin ve taleplerin tek yerde.</p>
+        </div>
+        <button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button>
+      </div>
+
+      <div class="card" style="padding:18px; margin-bottom:18px; max-width:340px;">
+        <small style="color:var(--text-muted);">Mevcut V bakiyen</small>
+        <div style="font-size:26px; font-weight:900; margin-top:4px;">${balText} V</div>
+      </div>
+
+      <div class="wallet-tabs">
+        <button class="wallet-tab-btn ${selectedWalletTab === 'overview' ? 'active' : ''}" onclick="selectedWalletTab='overview'; renderAll(false);">Genel Bakış</button>
+        <button class="wallet-tab-btn ${selectedWalletTab === 'deposit' ? 'active' : ''}" onclick="selectedWalletTab='deposit'; renderAll(false);">Bakiye Yükle</button>
+        <button class="wallet-tab-btn ${selectedWalletTab === 'requests' ? 'active' : ''}" onclick="selectedWalletTab='requests'; renderAll(false);">Taleplerim (${myReqs.length})</button>
+        <button class="wallet-tab-btn ${selectedWalletTab === 'payments' ? 'active' : ''}" onclick="selectedWalletTab='payments'; renderAll(false);">Ödemeler ve İadeler</button>
+        <button class="wallet-tab-btn ${selectedWalletTab === 'history' ? 'active' : ''}" onclick="selectedWalletTab='history'; renderAll(false);">İşlem Geçmişi</button>
+      </div>
+
+      ${selectedWalletTab === 'overview' ? `
+        <div class="two-col" style="margin-top:0;">
+          <div class="card" style="padding:18px;">
+            <small style="color:var(--text-muted);">Onay bekleyen yükleme</small>
+            <div style="font-size:20px; font-weight:800; margin-top:4px;">
+              ${myReqs.filter(r => r.status === 'pending').reduce((s, r) => s + Number(r.amount), 0).toFixed(2).replace('.', ',')} V
+            </div>
+          </div>
+          <div class="card" style="padding:18px;">
+            <small style="color:var(--text-muted);">Toplam işlem adedi</small>
+            <div style="font-size:20px; font-weight:800; margin-top:4px;">${myTxs.length} kayıt</div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${selectedWalletTab === 'deposit' ? `
+        <div class="wallet-grid">
+          <div class="card" style="padding:20px;">
+            <div class="eyebrow">TAKIM BAKİYESİ</div>
+            <h3 style="font-size:20px; font-weight:800;">Bakiye yükle</h3>
+            <p class="section-sub">Önce ödemeni yap, sonra yükleme talebini gönder.</p>
+
+            <div style="font-weight:700; margin-top:14px;">1 · Tutarını seç</div>
+            <div class="amount-grid">
+              ${[50, 100, 250, 500].map(amt => `
+                <button class="amount-btn ${selectedWalletAmount === amt ? 'active' : ''}" onclick="selectedWalletAmount=${amt}; renderAll(false);">${amt} V</button>
+              `).join('')}
+            </div>
+
+            <div class="iban-box">
+              <strong style="font-size:14px;">VIP & VIP+ Yükleme Bonusları</strong>
+              <p style="font-size:12.5px; color:var(--text-muted); margin-top:4px;">100 V ve 200 V üzeri yüklemelerde VIP / VIP+ bonus oranları yönetici onayında tanımlanır.</p>
+            </div>
+
+            <form onsubmit="submitWalletReq(event)">
+              <div class="form-group">
+                <label>Yüklenecek Tutar (V)</label>
+                <input class="input" name="amount" type="number" min="10" max="10000" value="${selectedWalletAmount}" required>
+              </div>
+              <div class="iban-box">
+                <div style="font-size:11.5px; color:var(--success); font-weight:700;">1. IBAN - Ana Hesap</div>
+                <div style="font-weight:800; margin:4px 0;">TR07 0015 7000 0000 0096 8623 49</div>
+                <button type="button" class="btn btn-secondary" onclick="navigator.clipboard?.writeText('TR07 0015 7000 0000 0096 8623 49'); showToast('IBAN kopyalandı.');">📋 IBAN'ı Kopyala</button>
+              </div>
+              <div class="iban-box">
+                <div style="font-size:11.5px; color:var(--success); font-weight:700;">2. IBAN - Yedek Hesap</div>
+                <div style="font-weight:800; margin:4px 0;">TR83 0011 1000 0000 0162 7706 40</div>
+                <button type="button" class="btn btn-secondary" onclick="navigator.clipboard?.writeText('TR83 0011 1000 0000 0162 7706 40'); showToast('IBAN kopyalandı.');">📋 IBAN'ı Kopyala</button>
+              </div>
+              <div class="form-group">
+                <label>Parayı gönderen kişinin adı soyadı</label>
+                <input class="input" name="senderName" required placeholder="Ad Soyad">
+              </div>
+              <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:14px;">
+                <input type="checkbox" required>
+                <span>Banka transferini yaptım. Tutar ve gönderen bilgilerini kontrol ettim.</span>
+              </label>
+              <button class="btn btn-primary" style="width:100%;" type="submit">Yükleme Talebi Gönder →</button>
+            </form>
+          </div>
+          <div class="card" style="padding:20px;">
+            <div class="eyebrow">NASIL ÇALIŞIR?</div>
+            <h3 style="margin-bottom:10px;">Yükle. Onaylansın. Turnuvaya katıl.</h3>
+            <p style="font-size:13.5px; color:var(--text-muted);">Talebin yönetici tarafından onaylandığında V bakiyen anında hesabına eklenir.</p>
+          </div>
+        </div>
+      ` : ''}
+
+      ${selectedWalletTab === 'requests' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:12px;">Yükleme Talepleri (${myReqs.length})</h3>
+          ${myReqs.length === 0 ? `<div class="empty-box">Henüz yükleme talebin yok.</div>` : myReqs.map(r => `
+            <div class="lfg-item" style="margin-bottom:8px;">
+              <div><strong>${Number(r.amount).toFixed(2)} V</strong><small>Gönderen: ${escapeHtml(r.senderName)} · ${escapeHtml(r.date)}</small></div>
+              <strong style="color:${r.status === 'approved' ? 'var(--success)' : 'var(--warning)'};">${r.status === 'approved' ? 'Onaylandı' : 'Onay Bekliyor'}</strong>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${selectedWalletTab === 'payments' || selectedWalletTab === 'history' ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="margin-bottom:12px;">${selectedWalletTab === 'payments' ? 'Ödemeler ve İadeler' : 'İşlem Geçmişi'} (${myTxs.length})</h3>
+          ${myTxs.length === 0 ? `<div class="empty-box">Henüz kayıtlı işlem bulunmuyor.</div>` : myTxs.map(t => `
+            <div class="lfg-item" style="margin-bottom:8px;">
+              <div><strong>${escapeHtml(t.title)}</strong><small>${escapeHtml(t.date)}</small></div>
+              <strong style="color:var(--success);">+${Number(t.amount).toFixed(2)} V</strong>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </section>
+  `;
+}
+
+async function submitWalletReq(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await commitSharedMutation(s => {
+    s.walletRequests.unshift({
+      id: 'wr_' + Date.now(),
+      username: state.currentUser.username,
+      amount: Number(fd.get('amount')),
+      senderName: fd.get('senderName').trim(),
+      status: 'pending',
+      date: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    });
+  });
+  selectedWalletTab = 'requests';
+  showToast('Bakiye talebi anında admin paneline iletildi!');
+  renderAll(false);
+}
+
+/* ARAMA */
+function renderSearchPage(root) {
+  root.innerHTML = `
+    <section class="page-section">
+      <div class="subpage-bar"><div><div class="eyebrow">● ARAMA</div><h2 class="section-title">Ara</h2></div><button class="btn btn-secondary" onclick="navigate('home')">← Ana Sayfa</button></div>
+      <div class="card" style="padding:16px;">
+        <input class="input" id="searchInp" oninput="doSearch()" placeholder="Turnuva veya kullanıcı ara...">
+        <div id="searchOut" style="margin-top:12px;"></div>
+      </div>
+    </section>
+  `;
+}
+
+function doSearch() {
+  const q = (document.getElementById('searchInp')?.value || '').trim().toLowerCase();
+  const out = document.getElementById('searchOut');
+  if (!out || q.length < 2) { out.innerHTML = ''; return; }
+  const users = state.users.filter(u => u.username.includes(q));
+  const tours = state.tournaments.filter(t => t.title.toLowerCase().includes(q));
+  out.innerHTML = `<div class="lfg-list">
+    ${tours.map(t => `<div class="lfg-item"><strong>🏆 ${escapeHtml(t.title)}</strong><button class="btn btn-secondary" onclick="navigate('tournament_room','${t.id}','overview')">Aç</button></div>`).join('')}
+    ${users.map(u => `<div class="lfg-item"><button class="link-btn" onclick="openUserProfileModal('${escapeAttr(u.username)}')">@${escapeHtml(u.username)}</button></div>`).join('')}
+  </div>`;
+}
+
+/* CANLI ADMIN PANELİ (/admin veya #admin) + SİTE İKONU & LOGOSU YÜKLE */
+function renderAdminPage() {
+  const shell = document.getElementById('shellWrapper');
+  if (!session.adminUnlocked) {
+    shell.innerHTML = `
+      <div style="min-height:100vh; display:grid; place-items:center; padding:20px;">
+        <div class="card" style="width:100%; max-width:400px; padding:24px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            ${renderSiteBrandEmblem(42, 38)}
+            <div class="eyebrow" style="margin-bottom:0;">NVL GAMES · CANLI ADMIN</div>
+          </div>
+          <h2 style="margin-bottom:14px;">Admin Girişi</h2>
+          <form onsubmit="adminLogin(event)">
+            <div class="form-group"><label>Kullanıcı Adı</label><input class="input" name="u" required></div>
+            <div class="form-group"><label>Şifre</label><input class="input" name="p" type="password" required></div>
+            <button class="btn btn-primary" style="width:100%;" type="submit">Giriş Yap</button>
+          </form>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const pendingReqs = state.walletRequests.filter(r => r.status === 'pending');
+
+  shell.innerHTML = `
+    <div class="container page-section">
+      <div class="subpage-bar">
+        <div style="display:flex; align-items:center; gap:12px;">
+          ${renderSiteBrandEmblem(46, 42)}
+          <div>
+            <div class="eyebrow">NVL GAMES · ANLIK CANLI YÖNETİM</div>
+            <h2 class="section-title">Admin Paneli</h2>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="live-dot-pill"><span class="live-dot-pulse"></span><span>${syncModeLabel}</span></span>
+          <button class="btn btn-secondary" onclick="session.adminUnlocked=false; saveSession(); history.pushState(null,'','/'); activeView='home'; renderAll(false);">Çıkış</button>
+        </div>
+      </div>
+
+      <!-- SİTE İKONU & LOGOSU YÜKLE -->
+      <div class="card" style="padding:20px; margin-bottom:18px;">
+        <div class="eyebrow">MARKA KİMLİĞİ & FAVICON</div>
+        <h3 style="margin-bottom:10px;">Site İkonu & Logosu Yükle</h3>
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          ${renderSiteBrandEmblem(68, 56)}
+          <div style="display:flex; flex-direction:column; gap:8px; flex:1; min-width:240px;">
+            <label style="font-size:12.5px; color:var(--text-muted); font-weight:700;">Cihazdan Görsel Seç (Favicon + Üst Logo)</label>
+            <input type="file" id="adminSiteLogoFileInput" accept="image/*" onchange="uploadAdminSiteLogo(event)" style="font-size:13px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
+              <button type="button" class="btn btn-secondary" onclick="resetAdminSiteLogo()">Varsayılan NVL Kalkan Logoya Dön</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:20px; margin-bottom:18px;">
+        <h3 style="margin-bottom:10px;">📢 Anlık Duyuru Yayınla</h3>
+        <form onsubmit="adminPostAnn(event)">
+          <div class="form-group"><label>Başlık</label><input class="input" name="title" required></div>
+          <div class="form-group"><label>İçerik</label><textarea class="textarea" name="content" rows="2" required></textarea></div>
+          <button class="btn btn-primary" type="submit">Duyuruyu Yayınla</button>
+        </form>
+      </div>
+
+      <div class="card" style="padding:20px; margin-bottom:18px;">
+        <h3 style="margin-bottom:12px;">💳 Bakiye Yükleme Talepleri (${pendingReqs.length} Bekleyen)</h3>
+        ${state.walletRequests.length === 0 ? `<div class="empty-box">Henüz bakiye yükleme talebi yok.</div>` : `
+          <div class="lfg-list">
+            ${state.walletRequests.map(r => `
+              <div class="lfg-item">
+                <div>
+                  <strong>@${escapeHtml(r.username)} — ${escapeHtml(String(r.amount))} V</strong>
+                  <small>Gönderen: ${escapeHtml(r.senderName)} · Saat: ${escapeHtml(r.date)}</small>
+                </div>
+                ${r.status === 'pending' ? `
+                  <button class="btn btn-success" onclick="approveWalletRequest('${r.id}')">✓ Onayla & Bakiyeyi Yükle</button>
+                ` : `<span style="color:var(--success); font-weight:700; font-size:12.5px;">✓ Onaylandı</span>`}
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+
+      <div class="card" style="padding:20px;">
+        <h3 style="margin-bottom:12px;">👥 Canlı Kayıtlı Üyeler, Turnuva Yetkisi & Rozetler (${state.users.length})</h3>
+        ${state.users.length === 0 ? `<div class="empty-box">Henüz kayıtlı üye yok. Yeni üye kayıt olduğunda anında burada görünür.</div>` : `
+          <div class="lfg-list">
+            ${state.users.map(u => {
+              const eligibleBadge = USER_BADGE_CATALOG.find(b => b.id !== 'uye' && b.check(u, state) && !(u.badges || []).includes(b.title));
+              return `
+                <div class="lfg-item">
+                  <div>
+                    <strong>@${escapeHtml(u.username)}</strong> <small style="display:inline;">(${escapeHtml(u.email)}) · Bakiye: ${Number(u.balance || 0)} V</small>
+                    <small>Rozetler: ${(u.badges || ['NVL Üye']).join(', ')}</small>
+                    ${eligibleBadge ? `<small style="color:var(--success); font-weight:700;">✓ Şartı karşılıyor: "${eligibleBadge.title}"</small>` : ''}
+                  </div>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="toggleOrgPerm('${escapeAttr(u.username)}')">
+                      ${u.canCreateTournament ? '✓ Turnuva Yetkili' : 'Turnuva Açma Yetkisi Ver'}
+                    </button>
+                    ${eligibleBadge ? `
+                      <button class="btn btn-success" onclick="grantBadgeToUser('${escapeAttr(u.username)}', '${escapeAttr(eligibleBadge.title)}')">
+                        Bu Rozeti Ver (${escapeHtml(eligibleBadge.title)})
+                      </button>
+                    ` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+function uploadAdminSiteLogo(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const dataUrl = String(reader.result || '');
+    if (!dataUrl) return;
+    await commitSharedMutation(s => {
+      s.siteLogoUrl = dataUrl;
+    });
+    applyFaviconLogo(dataUrl);
+    showToast('Site ikonu ve logosu canlı olarak güncellendi!');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function resetAdminSiteLogo() {
+  await commitSharedMutation(s => {
+    s.siteLogoUrl = DEFAULT_NVL_LOGO_DATA_URL;
+  });
+  applyFaviconLogo(DEFAULT_NVL_LOGO_DATA_URL);
+  showToast('Varsayılan NVL kalkan logosuna dönüldü.');
+}
+
+function adminLogin(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  if (fd.get('u').trim() === ADMIN_CREDS.user && fd.get('p') === ADMIN_CREDS.pass) {
+    session.adminUnlocked = true;
+    saveSession();
+    renderAll(false);
+  } else {
+    showToast('Hatalı admin bilgileri.');
+  }
+}
+
+async function adminPostAnn(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await commitSharedMutation(s => {
+    s.announcements.unshift({
+      id: 'ann_' + Date.now(),
+      title: fd.get('title').trim(),
+      content: fd.get('content').trim(),
+      date: new Date().toLocaleDateString('tr-TR')
+    });
+  });
+  showToast('Duyuru anında tüm ekranlara yayınlandı!');
+}
+
+async function approveWalletRequest(reqId) {
+  await commitSharedMutation(s => {
+    const req = s.walletRequests.find(r => r.id === reqId);
+    if (!req || req.status !== 'pending') return;
+    req.status = 'approved';
+    const usr = s.users.find(u => u.username === req.username);
+    if (usr) {
+      usr.balance = Number(usr.balance || 0) + Number(req.amount || 0);
+      s.transactions = s.transactions || [];
+      s.transactions.unshift({
+        id: 'tx_' + Date.now(),
+        username: usr.username,
+        title: 'Bakiye Yükleme Onayı',
+        amount: Number(req.amount || 0),
+        date: new Date().toLocaleString('tr-TR')
+      });
+      pushNotificationToTarget(s, usr.username, `${req.amount} V bakiye talebiniz onaylandı ve hesabınıza tanımlandı.`);
+    }
+  });
+  showToast('Bakiye talebi onaylandı ve kullanıcı hesabına anında yansıtıldı.');
+}
+
+async function toggleOrgPerm(username) {
+  await commitSharedMutation(s => {
+    const u = s.users.find(x => x.username === username);
+    if (!u) return;
+    u.canCreateTournament = !u.canCreateTournament;
+    if (u.canCreateTournament) {
+      u.badges = [...new Set([...(u.badges || ['NVL Üye']), 'NVL Organizatör'])];
+      pushNotificationToTarget(s, username, 'Turnuva açma yetkiniz aktif edildi.');
+    }
+  });
+  showToast(`@${username} turnuva yetkisi anında güncellendi.`);
+}
+
+async function grantBadgeToUser(username, badgeTitle) {
+  await commitSharedMutation(s => {
+    const u = s.users.find(x => x.username === username);
+    if (!u) return;
+    u.badges = [...new Set([...(u.badges || ['NVL Üye']), badgeTitle])];
+    pushNotificationToTarget(s, username, `"${badgeTitle}" rozeti hesabınıza tanımlandı.`);
+  });
+  showToast(`${badgeTitle} rozeti tanımlandı.`);
+}
+
+function openAnnouncementModal(id) {
+  const a = state.announcements.find(x => x.id === id);
+  if (!a) return;
+  openModal(`<div class="modal-head"><h3>${escapeHtml(a.title)}</h3><button class="icon-btn" onclick="closeModal()">✕</button></div><p style="white-space:pre-line;">${escapeHtml(a.content)}</p>`);
+}
+
+function openModal(html) {
+  document.getElementById('modalCard').innerHTML = html;
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalBackdrop').classList.remove('open');
+}
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function escapeAttr(str) {
+  return escapeHtml(str).replaceAll('`', '&#96;');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeExploreDrawer();
+    closeModal();
+  }
+});
+
+window.addEventListener('popstate', () => renderAll(false));
+window.addEventListener('hashchange', () => renderAll(false));
+
+Object.assign(window, {
+  navigate,
+  openExploreDrawer,
+  closeExploreDrawer,
+  openAuthModal,
+  submitRegister,
+  submitLogin,
+  logoutUser,
+  requestJoinTournament,
+  toggleTournamentChat,
+  sendTournamentChat,
+  createOrganizerTournament,
+  saveOrganizerCenterDetails,
+  setTournamentCurrentMatch,
+  finishTournament,
+  approveTeamJoinRequest,
+  setTourLive,
+  saveMatchScores,
+  uploadTeamLogoFile,
+  saveTeamLogoUrl,
+  saveTeamRosterIds,
+  createTeamWithInvite,
+  joinTeamByCode,
+  kickTeamMember,
+  sendTeamChat,
+  toggleForumVoice,
+  toggleTeamVoice,
+  toggleMic,
+  toggleSpeaker,
+  sendForumChat,
+  openUserProfileModal,
+  sendDmMsg,
+  openNotificationsModal,
+  applyTheme,
+  onSettingsSearchInput,
+  jumpToSettingsCard,
+  toggleSettingsCard,
+  saveUserSettingFields,
+  toggleDeviceNotifications,
+  changeUserPassword,
+  submitWalletReq,
+  doSearch,
+  uploadAdminSiteLogo,
+  resetAdminSiteLogo,
+  adminLogin,
+  adminPostAnn,
+  approveWalletRequest,
+  toggleOrgPerm,
+  grantBadgeToUser,
+  openAnnouncementModal,
+  closeModal,
+  renderAll,
+  showToast,
+  set activeTournamentPageId(v) { activeTournamentPageId = v; },
+  get activeTournamentPageId() { return activeTournamentPageId; },
+  set activeTournamentTab(v) { activeTournamentTab = v; },
+  get activeTournamentTab() { return activeTournamentTab; },
+  set selectedOrganizerTourId(v) { selectedOrganizerTourId = v; },
+  get selectedOrganizerTourId() { return selectedOrganizerTourId; },
+  set selectedOrganizerMatchNo(v) { selectedOrganizerMatchNo = v; },
+  get selectedOrganizerMatchNo() { return selectedOrganizerMatchNo; },
+  set selectedDmPeer(v) { selectedDmPeer = v; },
+  get selectedDmPeer() { return selectedDmPeer; },
+  set selectedWalletTab(v) { selectedWalletTab = v; },
+  get selectedWalletTab() { return selectedWalletTab; },
+  set selectedWalletAmount(v) { selectedWalletAmount = v; },
+  get selectedWalletAmount() { return selectedWalletAmount; },
+  get session() { return session; },
+  saveSession
+});
+
+renderAll(false);
+initRealtimeBackend();
+</script>
+</body>
+</html>
