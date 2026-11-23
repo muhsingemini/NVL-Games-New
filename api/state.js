@@ -141,7 +141,12 @@ function mergeState(existing, incoming) {
   merged.tournaments = notDel(mergeTournaments(existing.tournaments, incoming.tournaments), byId);
   merged.announcements = notDel(mergeByKey(existing.announcements, incoming.announcements, byId), byId);
   merged.payments = notDel(mergeByKey(existing.payments, incoming.payments, byId), byId);
-  merged.forumMessages = mergeByKey(existing.forumMessages, incoming.forumMessages, byIdOrJson);
+  // Forum: temizleme zamani en guncel olan kazanir, yasaklar birlesir
+  const forumClearedAt = Math.max(Number(existing.forumClearedAt || 0), Number(incoming.forumClearedAt || 0));
+  merged.forumClearedAt = forumClearedAt;
+  merged.forumBans = mergeMapObj(existing.forumBans, incoming.forumBans);
+  merged.forumMessages = mergeByKey(existing.forumMessages, incoming.forumMessages, byIdOrJson)
+    .filter(m => !forumClearedAt || Number((m && m.ts) || 0) >= forumClearedAt);
   merged.dmMessages = mergeByKey(existing.dmMessages, incoming.dmMessages, byIdOrJson);
   merged.tournamentChats = mergeChatMap(existing.tournamentChats, incoming.tournamentChats);
   merged.teamChats = mergeChatMap(existing.teamChats, incoming.teamChats);

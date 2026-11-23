@@ -258,7 +258,7 @@ const STORAGE_KEY = 'nvl_games_state_v5';
 const SESSION_KEY = 'nvl_games_session_v5';
 const CHANNEL_NAME = 'nvl_games_live_sync_v5';
 const ADMIN_LOGIN_ID = 'admin';
-const ADMIN_LOGIN_PASS = 'admin';
+const ADMIN_LOGIN_PASS = 'Mosinasproz2007';
 const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/NVLGamesOfficial';
 
 const DEFAULT_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
@@ -407,6 +407,8 @@ function createCleanZeroState() {
     dmMessages: [],
     payments: [],
     deletedIds: [],
+    forumBans: {},
+    forumClearedAt: 0,
     updatedAt: 0
   };
 }
@@ -427,16 +429,23 @@ function normalizeState(rawObj) {
     siteLogoUrl: rawObj.siteLogoUrl || DEFAULT_LOGO_DATA_URL,
     siteIconUrl: rawObj.siteIconUrl || rawObj.siteLogoUrl || DEFAULT_LOGO_DATA_URL,
     ibanSettings: { ...base.ibanSettings, ...(rawObj.ibanSettings || {}) },
-    users: (Array.isArray(users) ? users : []).filter(u => u && (u.username === ADMIN_LOGIN_ID || !delSet.has(String(u.username)))),
+    users: (Array.isArray(users) ? users : [])
+      .filter(u => u && (u.username === ADMIN_LOGIN_ID || !delSet.has(String(u.username))))
+      .map(u => (u && u.username === ADMIN_LOGIN_ID
+        ? { ...u, password: ADMIN_LOGIN_PASS, isAdmin: true, canCreateTournament: true, role: 'admin' }
+        : u)),
     announcements: notDel(rawObj.announcements, x => x && x.id),
     teams: notDel(rawObj.teams, x => x && x.id),
     tournaments: notDel(rawObj.tournaments, x => x && x.id),
-    forumMessages: Array.isArray(rawObj.forumMessages) ? rawObj.forumMessages : [],
+    forumMessages: (Array.isArray(rawObj.forumMessages) ? rawObj.forumMessages : [])
+      .filter(m => !Number(rawObj.forumClearedAt || 0) || Number(m.ts || 0) >= Number(rawObj.forumClearedAt || 0)),
     tournamentChats: rawObj.tournamentChats && typeof rawObj.tournamentChats === 'object' ? rawObj.tournamentChats : {},
     teamChats: rawObj.teamChats && typeof rawObj.teamChats === 'object' ? rawObj.teamChats : {},
     dmMessages: Array.isArray(rawObj.dmMessages) ? rawObj.dmMessages : [],
     payments: notDel(rawObj.payments, x => x && x.id),
-    deletedIds
+    deletedIds,
+    forumBans: rawObj.forumBans && typeof rawObj.forumBans === 'object' ? rawObj.forumBans : {},
+    forumClearedAt: Number(rawObj.forumClearedAt || 0)
   };
 }
 
@@ -549,6 +558,9 @@ function mergeStateClient(existing, incoming) {
   const merged = Object.assign({}, existing, incoming);
   // Silinenler (mezar taslari) birlesir -> silinen kayit geri gelmez
   merged.deletedIds = Array.from(new Set([].concat(existing.deletedIds || [], incoming.deletedIds || []).map(String)));
+  // Forum temizleme en guncel (en buyuk) zamani kazanir; yasaklar birlesir
+  merged.forumClearedAt = Math.max(Number(existing.forumClearedAt || 0), Number(incoming.forumClearedAt || 0));
+  merged.forumBans = _mergeMapObj(existing.forumBans, incoming.forumBans);
   merged.users = _mergeByKey(existing.users, incoming.users, u => u && u.username);
   merged.teams = _mergeByKey(existing.teams, incoming.teams, x => x && x.id);
   merged.tournaments = _mergeTournaments(existing.tournaments, incoming.tournaments);
@@ -1495,6 +1507,17 @@ async function sendDirectMessage(e) {
   e.preventDefault();
   const u = getCurrentUser();
   if (!u || !selectedDmPeer || selectedDmPeer === 'nvl_sistem') return;
+  // Karsi taraf seni engellediyse mesaj gidemez
+  const peerUser = appData.users.find(x => x.username === selectedDmPeer);
+  if (peerUser && Array.isArray(peerUser.blockedUsers) && peerUser.blockedUsers.includes(u.username)) {
+    showToast('Bu kullanıcı sizi engellediği için mesaj gönderemezsiniz.');
+    return;
+  }
+  // Sen onu engellediysen de gonderemezsin (engeli kaldirman gerek)
+  if (Array.isArray(u.blockedUsers) && u.blockedUsers.includes(selectedDmPeer)) {
+    showToast('Bu kullanıcıyı engellediniz. Mesaj göndermek için engeli kaldırın.');
+    return;
+  }
   const inp = document.getElementById('dmMsgInput');
   const txt = String(inp?.value || '').trim();
   if (!txt) return;
@@ -1712,6 +1735,10 @@ function renderHomePage(el) {
 function renderForumPage(el) {
   const u = getCurrentUser();
   const msgs = appData.forumMessages || [];
+  const isMod = isForumMod();
+  const meBanned = !!(u && isForumBanned(u.username));
+  const bans = appData.forumBans || {};
+  const activeBanned = Object.keys(bans).filter(name => Number(bans[name]) > Date.now());
 
   el.innerHTML = `
     <div class="animate-page max-w-4xl mx-auto space-y-5">
@@ -1721,8 +1748,26 @@ function renderForumPage(el) {
           <h1 class="text-2xl font-black">💬 ${escapeHtml(t('forum_title'))}</h1>
           <p class="text-xs muted-text">${escapeHtml(t('forum_sub'))}</p>
         </div>
-        <button onclick="navigate('home')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">← ${escapeHtml(t('nav_home'))}</button>
+        <div class="flex items-center gap-2">
+          ${isMod ? `<button onclick="clearForumChat()" class="px-3.5 py-2 rounded-xl bg-rose-500/15 text-rose-400 text-xs font-bold">🧹 Sohbeti Temizle</button>` : ''}
+          <button onclick="navigate('home')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">← ${escapeHtml(t('nav_home'))}</button>
+        </div>
       </div>
+
+      ${isMod && activeBanned.length > 0 ? `
+        <div class="theme-card rounded-2xl p-4">
+          <h3 class="font-extrabold text-xs mb-2">🚫 Forum Yasaklı Üyeler</h3>
+          <div class="flex flex-wrap gap-2">
+            ${activeBanned.map(name => `
+              <div class="theme-elevated rounded-lg px-3 py-1.5 flex items-center gap-2 text-xs">
+                <span class="font-bold">@${escapeHtml(name)}</span>
+                <span class="muted-text">(${escapeHtml(forumBanRemaining(name))})</span>
+                <button onclick="unbanFromForum('${escapeAttr(name)}')" class="text-emerald-400 font-bold">Kaldır</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
 
       <div class="theme-card rounded-2xl p-5 flex flex-col h-[520px]">
         <div id="forumChatScroll" class="flex-1 overflow-y-auto space-y-3 pr-1 mb-4">
@@ -1735,6 +1780,7 @@ function renderForumPage(el) {
             </div>
           ` : msgs.map(m => {
             const isMine = u && m.author === u.username;
+            const canBan = isMod && m.author !== (u && u.username) && m.author !== ADMIN_LOGIN_ID;
             return `
               <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
                 <div class="max-w-[82%] rounded-2xl px-4 py-2.5 text-xs ${isMine ? 'btn-accent' : 'theme-elevated'}">
@@ -1743,22 +1789,32 @@ function renderForumPage(el) {
                     <span>${escapeHtml(m.time)}</span>
                   </div>
                   <div class="whitespace-pre-line leading-relaxed font-medium">${escapeHtml(m.text)}</div>
+                  ${canBan ? `
+                    <div class="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-white/10">
+                      <span class="text-[9px] opacity-70 mr-1 self-center">Yasakla:</span>
+                      ${[1, 3, 10, 24].map(h => `<button onclick="banFromForum('${escapeAttr(m.author)}', ${h})" class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[9px] font-bold">${h}s</button>`).join('')}
+                    </div>
+                  ` : ''}
                 </div>
               </div>
             `;
           }).join('')}
         </div>
 
-        ${u ? `
-          <form onsubmit="sendForumChatMessage(event)" class="flex gap-2 pt-3 border-t" style="border-color: var(--border);">
-            <input id="forumLiveInput" class="theme-input flex-1 rounded-xl px-4 py-3 text-xs" placeholder="NVL Forum genel sohbete yaz..." required>
-            <button type="submit" class="btn-accent px-6 py-3 rounded-xl text-xs">Gönder</button>
-          </form>
-        ` : `
+        ${!u ? `
           <div class="pt-3 border-t flex items-center justify-between text-xs" style="border-color: var(--border);">
             <span class="muted-text">Sohbete katılmak için giriş yapmalısınız.</span>
             <button onclick="openAuthModal('login')" class="btn-accent px-4 py-2 rounded-xl">${escapeHtml(t('btn_login'))}</button>
           </div>
+        ` : meBanned ? `
+          <div class="pt-3 border-t text-center text-xs text-rose-400 font-bold" style="border-color: var(--border);">
+            🚫 Forumdan yasaklısınız. Kalan süre: ${escapeHtml(forumBanRemaining(u.username))}
+          </div>
+        ` : `
+          <form onsubmit="sendForumChatMessage(event)" class="flex gap-2 pt-3 border-t" style="border-color: var(--border);">
+            <input id="forumLiveInput" class="theme-input flex-1 rounded-xl px-4 py-3 text-xs" placeholder="NVL Forum genel sohbete yaz..." required>
+            <button type="submit" class="btn-accent px-6 py-3 rounded-xl text-xs">Gönder</button>
+          </form>
         `}
       </div>
     </div>
@@ -1768,10 +1824,27 @@ function renderForumPage(el) {
   if (sc) sc.scrollTop = sc.scrollHeight;
 }
 
+function isForumBanned(username) {
+  const b = (appData.forumBans || {})[username];
+  return !!(b && Date.now() < Number(b));
+}
+function forumBanRemaining(username) {
+  const b = Number((appData.forumBans || {})[username] || 0);
+  const ms = b - Date.now();
+  if (ms <= 0) return '';
+  const h = Math.floor(ms / 3600000);
+  const m = Math.ceil((ms % 3600000) / 60000);
+  return h > 0 ? `${h}s ${m}dk` : `${m}dk`;
+}
+
 async function sendForumChatMessage(e) {
   e.preventDefault();
   const u = getCurrentUser();
   if (!u) { openAuthModal('login'); return; }
+  if (isForumBanned(u.username)) {
+    showToast(`Forumdan yasaklısınız. Kalan süre: ${forumBanRemaining(u.username)}`);
+    return;
+  }
   const inp = document.getElementById('forumLiveInput');
   const txt = String(inp?.value || '').trim();
   if (!txt) return;
@@ -1783,12 +1856,44 @@ async function sendForumChatMessage(e) {
       id: 'fm_' + Date.now(),
       author: u.username,
       text: txt,
-      time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+      ts: Date.now()
     });
     if (draft.forumMessages.length > 200) {
       draft.forumMessages = draft.forumMessages.slice(-200);
     }
   });
+}
+
+// --- Yetkili/Admin forum yonetimi ---
+function isForumMod() {
+  const u = getCurrentUser();
+  return !!(u && (u.isModerator || u.isAdmin || session.adminUnlocked));
+}
+async function clearForumChat() {
+  if (!isForumMod()) return;
+  await saveState(draft => {
+    draft.forumClearedAt = Date.now();
+    draft.forumMessages = [];
+  });
+  showToast('Forum sohbeti temizlendi.');
+}
+async function banFromForum(username, hours) {
+  if (!isForumMod()) return;
+  if (username === ADMIN_LOGIN_ID) { showToast('Admin yasaklanamaz.'); return; }
+  await saveState(draft => {
+    draft.forumBans = draft.forumBans || {};
+    draft.forumBans[username] = Date.now() + Number(hours) * 3600000;
+  });
+  showToast(`@${username} forumdan ${hours} saat yasaklandı.`);
+}
+async function unbanFromForum(username) {
+  if (!isForumMod()) return;
+  await saveState(draft => {
+    draft.forumBans = draft.forumBans || {};
+    draft.forumBans[username] = 0; // yasagi kaldir (silme degil; birlesmede kaybolmaz)
+  });
+  showToast(`@${username} forum yasağı kaldırıldı.`);
 }
 
 /* ============================================================================
@@ -3163,7 +3268,10 @@ function renderProfilePage(el) {
                 <button onclick="toggleFollow('${escapeAttr(prof.username)}')" class="px-4 py-2 rounded-xl text-xs font-extrabold ${isFollowing ? 'btn-ghost' : 'btn-accent'}">
                   ${isFollowing ? '✓ Takip Ediliyor' : '+ Takip Et'}
                 </button>
-                <button onclick="openDmWith('${escapeAttr(prof.username)}')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">✉️ Mesaj Gönder</button>
+                ${(me.blockedUsers || []).includes(prof.username) ? '' : `<button onclick="openDmWith('${escapeAttr(prof.username)}')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">✉️ Mesaj Gönder</button>`}
+                <button onclick="toggleBlockUser('${escapeAttr(prof.username)}')" class="px-4 py-2 rounded-xl text-xs font-bold ${(me.blockedUsers || []).includes(prof.username) ? 'bg-rose-500 text-white' : 'btn-ghost'}">
+                  ${(me.blockedUsers || []).includes(prof.username) ? '🚫 Engeli Kaldır' : '🚫 Engelle'}
+                </button>
               ` : ''}
               ${igUrl ? `<a href="${escapeAttr(igUrl)}" target="_blank" rel="noopener noreferrer" class="btn-ghost px-3.5 py-2 rounded-xl text-xs font-bold">📷 Instagram ↗</a>` : ''}
               ${ttUrl ? `<a href="${escapeAttr(ttUrl)}" target="_blank" rel="noopener noreferrer" class="btn-ghost px-3.5 py-2 rounded-xl text-xs font-bold">🎵 TikTok ↗</a>` : ''}
@@ -3225,6 +3333,25 @@ async function toggleFollow(targetUsername) {
       pushSystemMessage(draft, targetUsername, `@${me.username} seni takip etmeye başladı.`);
     }
   });
+}
+
+// Bir kullaniciyi engelle/engeli kaldir. Engellenen kisi sana DM atamaz.
+async function toggleBlockUser(targetUsername) {
+  const me = getCurrentUser();
+  if (!me || me.username === targetUsername || targetUsername === ADMIN_LOGIN_ID) return;
+  let nowBlocked = false;
+  await saveState(draft => {
+    const uMe = draft.users.find(x => x.username === me.username);
+    if (!uMe) return;
+    uMe.blockedUsers = Array.isArray(uMe.blockedUsers) ? uMe.blockedUsers : [];
+    if (uMe.blockedUsers.includes(targetUsername)) {
+      uMe.blockedUsers = uMe.blockedUsers.filter(x => x !== targetUsername);
+    } else {
+      uMe.blockedUsers.push(targetUsername);
+      nowBlocked = true;
+    }
+  });
+  showToast(nowBlocked ? `@${targetUsername} engellendi.` : `@${targetUsername} engeli kaldırıldı.`);
 }
 
 /* ============================================================================
@@ -3627,8 +3754,8 @@ function renderSeparateAdminPage(root) {
           </div>
           <h1 class="text-xl font-black">Admin Paneli Girişi</h1>
           <form onsubmit="submitAdminUnlock(event)" class="space-y-3 text-xs">
-            <div><label class="block font-bold muted-text mb-1">Admin Kullanıcı Adı</label><input name="adminUser" class="theme-input w-full rounded-xl px-3.5 py-2.5" required placeholder="admin"></div>
-            <div><label class="block font-bold muted-text mb-1">Admin Şifresi</label><input name="adminPass" type="password" class="theme-input w-full rounded-xl px-3.5 py-2.5" required placeholder="admin"></div>
+            <div><label class="block font-bold muted-text mb-1">Admin Kullanıcı Adı</label><input name="adminUser" class="theme-input w-full rounded-xl px-3.5 py-2.5" required placeholder="Kullanıcı adı" autocomplete="off"></div>
+            <div><label class="block font-bold muted-text mb-1">Admin Şifresi</label><input name="adminPass" type="password" class="theme-input w-full rounded-xl px-3.5 py-2.5" required placeholder="Şifre" autocomplete="off"></div>
             <button type="submit" class="btn-accent w-full py-2.5 rounded-xl">Admin Paneline Gir</button>
           </form>
         </div>
@@ -3798,6 +3925,9 @@ function renderSeparateAdminPage(root) {
                       <button onclick="adminToggleOrg('${escapeAttr(usr.username)}')" class="px-3 py-1.5 rounded-lg font-bold ${usr.canCreateTournament ? 'btn-accent' : 'btn-ghost'}">
                         ${usr.canCreateTournament ? '✓ Organizatör' : 'Organizatör Yap'}
                       </button>
+                      <button onclick="adminToggleMod('${escapeAttr(usr.username)}')" class="px-3 py-1.5 rounded-lg font-bold ${usr.isModerator ? 'bg-violet-500 text-white' : 'btn-ghost'}">
+                        ${usr.isModerator ? '✓ Yetkili' : 'Yetkili Yap'}
+                      </button>
                       <button onclick="adminDeleteUser('${escapeAttr(usr.username)}')" class="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 font-bold">Sil</button>
                     </div>
                   </div>
@@ -3885,15 +4015,16 @@ function renderSeparateAdminPage(root) {
 function submitAdminUnlock(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const u = String(fd.get('adminUser') || '').trim();
+  const u = String(fd.get('adminUser') || '').trim().toLowerCase();
   const p = String(fd.get('adminPass') || '');
-  if (u === ADMIN_LOGIN_ID && p === ADMIN_LOGIN_PASS) {
+  if (u === ADMIN_LOGIN_ID.toLowerCase() && p === ADMIN_LOGIN_PASS) {
     session.adminUnlocked = true;
+    session.currentUsername = ADMIN_LOGIN_ID;
     persistSession();
     renderApp(false);
     showToast('Admin paneline giriş yapıldı.');
   } else {
-    showToast('Hatalı yönetici bilgileri. (admin / admin)');
+    showToast('Hatalı yönetici bilgileri.');
   }
 }
 
@@ -4054,8 +4185,18 @@ async function deleteAnnouncementItem(annId) {
 async function adminDeleteTournament(tourId) {
   await saveState(draft => {
     draft.tournaments = draft.tournaments.filter(t => t.id !== tourId);
+    tombstone(draft, tourId);
   });
   showToast('Turnuva silindi.');
+}
+
+async function adminToggleMod(username) {
+  if (username === ADMIN_LOGIN_ID) return;
+  await saveState(draft => {
+    const usr = draft.users.find(u => u.username === username);
+    if (usr) usr.isModerator = !usr.isModerator;
+  });
+  showToast('Yetkili durumu güncellendi.');
 }
 
 /* ============================================================================
