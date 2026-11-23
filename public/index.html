@@ -213,8 +213,13 @@
     0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
     50% { opacity: 0.35; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
   }
+  @keyframes blinkAmber {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+    50% { opacity: 0.4; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+  }
   .blink-red { animation: blinkRed 1s infinite; }
   .blink-green { animation: blinkGreen 1s infinite; }
+  .blink-amber { animation: blinkAmber 1.1s infinite; }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -782,9 +787,15 @@ function getTournamentRoster(tour, teamId) {
   const r = (tour && tour.rosters && tour.rosters[teamId]) || {};
   const main = Array.isArray(r.main) ? r.main : [];
   const sub = Array.isArray(r.sub) ? r.sub : [];
+  const aMain = Array.isArray(r.approvedMain) ? r.approvedMain : [];
+  const aSub = Array.isArray(r.approvedSub) ? r.approvedSub : [];
   return {
+    // Guncel (en son girilen) ID'ler
     main: [0, 1, 2, 3].map(i => main[i] || { nick: '', id: '' }),
     sub: [0, 1].map(i => sub[i] || { nick: '', id: '' }),
+    // Organizatorun onayladigi (baz) ID'ler
+    approvedMain: [0, 1, 2, 3].map(i => aMain[i] || { nick: '', id: '' }),
+    approvedSub: [0, 1].map(i => aSub[i] || { nick: '', id: '' }),
     // Yedek degisimleri: [{ outMain, inSub, done }]
     substitutions: Array.isArray(r.substitutions) ? r.substitutions : []
   };
@@ -2130,9 +2141,10 @@ function renderOrganizerPage(el) {
             `}
           </div>
 
-          <!-- Takım Kadro ID'leri (organizatör görür — arkadaş eklemek için) -->
+          <!-- Takım Kadro ID'leri: Onaylanan + Güncel (ara değişiklikler gizli) -->
           <div>
-            <h3 class="font-extrabold text-sm mb-2">🎮 Takım Kadro ID'leri</h3>
+            <h3 class="font-extrabold text-sm mb-1">🎮 Takım Kadro ID'leri</h3>
+            <p class="text-[11px] muted-text mb-2">Her oyuncu için <strong>onayladığınız ID</strong> ve <strong>en son girilen ID</strong> görünür. Aradaki değişiklikler gösterilmez. Değişiklik varsa onaylayın.</p>
             ${(activeTour.joinedTeams || []).length === 0 ? `
               <div class="theme-elevated rounded-xl p-4 text-xs muted-text">Onaylı takım yok.</div>
             ` : `
@@ -2140,12 +2152,28 @@ function renderOrganizerPage(el) {
                 ${activeTour.joinedTeams.map(tid => {
                   const tm = appData.teams.find(x => x.id === tid);
                   const roster = getTournamentRoster(activeTour, tid);
-                  const idChip = (p) => `<span class="px-2 py-0.5 rounded-md theme-elevated font-mono text-[11px]">${escapeHtml(p.nick || '-')}${p.id ? ' · ' + escapeHtml(p.id) : ''}</span>`;
+                  const slotRow = (label, cur, appr, kind, i) => {
+                    const curId = String(cur.id || '').trim();
+                    const apprId = String(appr.id || '').trim();
+                    const pending = curId && curId !== apprId;
+                    return `<div class="flex flex-wrap items-center gap-2 py-1">
+                      <span class="w-20 muted-text shrink-0">${label}</span>
+                      <span class="font-mono px-2 py-0.5 rounded-md theme-elevated">${apprId ? escapeHtml(apprId) : '—'}</span>
+                      ${pending ? `<span>→</span>
+                        <span class="font-mono px-2 py-0.5 rounded-md blink-amber" style="background:rgba(245,158,11,0.18);color:#fbbf24;">${escapeHtml(curId)}</span>
+                        <button onclick="approveRosterId('${activeTour.id}','${tid}','${kind}',${i})" class="px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 font-extrabold text-[10px]">Onayla</button>` : ''}
+                    </div>`;
+                  };
+                  const pendingCount = roster.main.filter((p, i) => String(p.id || '').trim() && String(p.id || '').trim() !== String(roster.approvedMain[i].id || '').trim()).length
+                    + roster.sub.filter((p, i) => String(p.id || '').trim() && String(p.id || '').trim() !== String(roster.approvedSub[i].id || '').trim()).length;
                   return `
                     <div class="theme-elevated rounded-xl p-3 text-xs">
-                      <div class="font-bold mb-1.5">${tm ? escapeHtml(tm.name) : tid} <span class="muted-text">[${tm ? escapeHtml(tm.tag) : ''}]</span></div>
-                      <div class="flex flex-wrap gap-1.5 mb-1"><span class="accent-text font-bold mr-1">Ana:</span>${roster.main.map(idChip).join('')}</div>
-                      <div class="flex flex-wrap gap-1.5"><span class="text-amber-400 font-bold mr-1">Yedek:</span>${roster.sub.map(idChip).join('')}</div>
+                      <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                        <div class="font-bold">${tm ? escapeHtml(tm.name) : tid} <span class="muted-text">[${tm ? escapeHtml(tm.tag) : ''}]</span></div>
+                        ${pendingCount > 0 ? `<button onclick="approveAllRosterIds('${activeTour.id}','${tid}')" class="px-2.5 py-1 rounded-md bg-emerald-500 text-slate-950 font-extrabold text-[10px]">Tümünü Onayla (${pendingCount})</button>` : `<span class="text-emerald-400 text-[10px] font-bold">✓ Güncel</span>`}
+                      </div>
+                      ${[0, 1, 2, 3].map(i => slotRow('Ana ' + (i + 1), roster.main[i], roster.approvedMain[i], 'main', i)).join('')}
+                      ${[0, 1].map(i => slotRow('Yedek ' + (i + 1), roster.sub[i], roster.approvedSub[i], 'sub', i)).join('')}
                     </div>
                   `;
                 }).join('')}
@@ -2369,22 +2397,32 @@ async function saveTournamentRoster(e, tourId, teamId) {
     const prev = tr.rosters[teamId] || {};
     const prevMain = Array.isArray(prev.main) ? prev.main : [];
     const prevSub = Array.isArray(prev.sub) ? prev.sub : [];
-    // Onceki ID ile farkli mi? Degisen ID'leri organizatore bildir.
-    const changes = [];
+    const apprMain = Array.isArray(prev.approvedMain) ? prev.approvedMain : [];
+    const apprSub = Array.isArray(prev.approvedSub) ? prev.approvedSub : [];
+    // Onaylanan ID'den YENI sapan slotlari bul (ara degisikliklerde tekrar bildirme).
+    // Bir slot zaten onaydan sapmissa (bekliyorsa) tekrar bildirim gitmez; guncel ID
+    // sadece en son degere guncellenir, aradaki ID'ler kaybolur.
+    let newlyPending = false;
     newMain.forEach((p, i) => {
-      const old = prevMain[i] || {};
-      if (old.id && old.id !== p.id) changes.push(`Ana ${i + 1}: ${old.id} → ${p.id || '(boş)'}`);
+      const appr = (apprMain[i] || {}).id || '';
+      const oldCur = (prevMain[i] || {}).id || '';
+      const wasPending = oldCur && oldCur !== appr;
+      const isPending = p.id && p.id !== appr;
+      if (!wasPending && isPending) newlyPending = true;
     });
     newSub.forEach((p, i) => {
-      const old = prevSub[i] || {};
-      if (old.id && old.id !== p.id) changes.push(`Yedek ${i + 1}: ${old.id} → ${p.id || '(boş)'}`);
+      const appr = (apprSub[i] || {}).id || '';
+      const oldCur = (prevSub[i] || {}).id || '';
+      const wasPending = oldCur && oldCur !== appr;
+      const isPending = p.id && p.id !== appr;
+      if (!wasPending && isPending) newlyPending = true;
     });
     tr.rosters[teamId] = tr.rosters[teamId] || {};
     tr.rosters[teamId].main = newMain;
     tr.rosters[teamId].sub = newSub;
-    if (changes.length > 0) {
+    if (newlyPending) {
       const tm = draft.teams.find(x => x.id === teamId);
-      pushSystemMessage(draft, tr.creator, `"${tr.title}" — "${tm ? tm.name : teamId}" takımı kadro ID değişikliği yaptı → ${changes.join(', ')}`);
+      pushSystemMessage(draft, tr.creator, `"${tr.title}" — "${tm ? tm.name : teamId}" takımı kadro ID değişikliği yaptı. Panelden kontrol edip onaylayın.`);
     }
   });
   showToast('Kadro kaydedildi.');
@@ -2420,6 +2458,35 @@ async function requestSubstitution(e, tourId, teamId) {
     pushSystemMessage(draft, tr.creator, `"${tr.title}" — "${tm ? tm.name : teamId}" takımı yedek değişimi talep etti.`);
   });
   showToast('Yedek değişim talebi organizatöre iletildi.');
+}
+
+// Organizator tek bir slotun guncel ID'sini onaylar -> onaylanan = guncel olur
+async function approveRosterId(tourId, teamId, kind, idx) {
+  await saveState(draft => {
+    const tr = draft.tournaments.find(t => t.id === tourId);
+    if (!tr || !tr.rosters || !tr.rosters[teamId]) return;
+    const r = tr.rosters[teamId];
+    if (kind === 'main') {
+      r.approvedMain = Array.isArray(r.approvedMain) ? r.approvedMain : [];
+      r.approvedMain[idx] = Object.assign({}, (r.main || [])[idx] || { nick: '', id: '' });
+    } else {
+      r.approvedSub = Array.isArray(r.approvedSub) ? r.approvedSub : [];
+      r.approvedSub[idx] = Object.assign({}, (r.sub || [])[idx] || { nick: '', id: '' });
+    }
+  });
+  showToast('ID onaylandı.');
+}
+
+// Bir takimin tum guncel ID'lerini tek seferde onaylar
+async function approveAllRosterIds(tourId, teamId) {
+  await saveState(draft => {
+    const tr = draft.tournaments.find(t => t.id === tourId);
+    if (!tr || !tr.rosters || !tr.rosters[teamId]) return;
+    const r = tr.rosters[teamId];
+    r.approvedMain = (Array.isArray(r.main) ? r.main : []).map(p => Object.assign({}, p || { nick: '', id: '' }));
+    r.approvedSub = (Array.isArray(r.sub) ? r.sub : []).map(p => Object.assign({}, p || { nick: '', id: '' }));
+  });
+  showToast('Tüm kadro ID’leri onaylandı.');
 }
 
 async function markSubstitutionDone(tourId, teamId, idx) {
