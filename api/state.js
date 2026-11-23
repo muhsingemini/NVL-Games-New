@@ -130,11 +130,17 @@ function byIdOrJson(m) {
 function mergeState(existing, incoming) {
   if (!existing || typeof existing !== 'object') return incoming;
   const merged = Object.assign({}, existing, incoming);
-  merged.users = mergeByKey(existing.users, incoming.users, byUsername);
-  merged.teams = mergeByKey(existing.teams, incoming.teams, byId);
-  merged.tournaments = mergeTournaments(existing.tournaments, incoming.tournaments);
-  merged.announcements = mergeByKey(existing.announcements, incoming.announcements, byId);
-  merged.payments = mergeByKey(existing.payments, incoming.payments, byId);
+  // Silinenler (mezar taslari) birlesir; sonra bu kayitlar listelerden cikarilir.
+  const deletedIds = Array.from(new Set([].concat(existing.deletedIds || [], incoming.deletedIds || []).map(String)));
+  merged.deletedIds = deletedIds;
+  const delSet = new Set(deletedIds);
+  const notDel = (arr, keyFn) => (Array.isArray(arr) ? arr : []).filter(it => !delSet.has(String(keyFn(it))));
+
+  merged.users = notDel(mergeByKey(existing.users, incoming.users, byUsername), byUsername);
+  merged.teams = notDel(mergeByKey(existing.teams, incoming.teams, byId), byId);
+  merged.tournaments = notDel(mergeTournaments(existing.tournaments, incoming.tournaments), byId);
+  merged.announcements = notDel(mergeByKey(existing.announcements, incoming.announcements, byId), byId);
+  merged.payments = notDel(mergeByKey(existing.payments, incoming.payments, byId), byId);
   merged.forumMessages = mergeByKey(existing.forumMessages, incoming.forumMessages, byIdOrJson);
   merged.dmMessages = mergeByKey(existing.dmMessages, incoming.dmMessages, byIdOrJson);
   merged.tournamentChats = mergeChatMap(existing.tournamentChats, incoming.tournamentChats);

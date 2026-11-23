@@ -307,6 +307,7 @@ const I18N = {
     sec_announcements: 'DUYURULAR',
     no_announcements: 'Henüz yayınlanmış duyuru bulunmuyor.',
     sec_tournaments: 'Turnuvalar',
+    finished_tournaments: 'Bitmiş Turnuvalar',
     sec_tournaments_sub: 'Aktif ve yaklaşan PUBG Mobile turnuvalarına katıl.',
     no_tournaments: 'Henüz açılmış turnuva bulunmuyor.',
     sec_ranking: 'Takım Sıralaması',
@@ -345,6 +346,7 @@ const I18N = {
     sec_announcements: 'ANNOUNCEMENTS',
     no_announcements: 'No announcements published yet.',
     sec_tournaments: 'Tournaments',
+    finished_tournaments: 'Finished Tournaments',
     sec_tournaments_sub: 'Join active and upcoming PUBG Mobile tournaments.',
     no_tournaments: 'No tournaments created yet.',
     sec_ranking: 'Team Ranking',
@@ -404,6 +406,7 @@ function createCleanZeroState() {
     teamChats: {},
     dmMessages: [],
     payments: [],
+    deletedIds: [],
     updatedAt: 0
   };
 }
@@ -411,25 +414,29 @@ function createCleanZeroState() {
 function normalizeState(rawObj) {
   const base = createCleanZeroState();
   if (!rawObj || typeof rawObj !== 'object') return base;
-  const users = Array.isArray(rawObj.users) ? rawObj.users : [];
+  let users = Array.isArray(rawObj.users) ? rawObj.users : [];
   if (!users.some(u => u.username === ADMIN_LOGIN_ID)) {
     users.unshift(base.users[0]);
   }
+  const deletedIds = Array.isArray(rawObj.deletedIds) ? rawObj.deletedIds : [];
+  const delSet = new Set(deletedIds.map(String));
+  const notDel = (arr, keyFn) => (Array.isArray(arr) ? arr : []).filter(it => !delSet.has(String(keyFn(it))));
   return {
     ...base,
     ...rawObj,
     siteLogoUrl: rawObj.siteLogoUrl || DEFAULT_LOGO_DATA_URL,
     siteIconUrl: rawObj.siteIconUrl || rawObj.siteLogoUrl || DEFAULT_LOGO_DATA_URL,
     ibanSettings: { ...base.ibanSettings, ...(rawObj.ibanSettings || {}) },
-    users,
-    announcements: Array.isArray(rawObj.announcements) ? rawObj.announcements : [],
-    teams: Array.isArray(rawObj.teams) ? rawObj.teams : [],
-    tournaments: Array.isArray(rawObj.tournaments) ? rawObj.tournaments : [],
+    users: (Array.isArray(users) ? users : []).filter(u => u && (u.username === ADMIN_LOGIN_ID || !delSet.has(String(u.username)))),
+    announcements: notDel(rawObj.announcements, x => x && x.id),
+    teams: notDel(rawObj.teams, x => x && x.id),
+    tournaments: notDel(rawObj.tournaments, x => x && x.id),
     forumMessages: Array.isArray(rawObj.forumMessages) ? rawObj.forumMessages : [],
     tournamentChats: rawObj.tournamentChats && typeof rawObj.tournamentChats === 'object' ? rawObj.tournamentChats : {},
     teamChats: rawObj.teamChats && typeof rawObj.teamChats === 'object' ? rawObj.teamChats : {},
     dmMessages: Array.isArray(rawObj.dmMessages) ? rawObj.dmMessages : [],
-    payments: Array.isArray(rawObj.payments) ? rawObj.payments : []
+    payments: notDel(rawObj.payments, x => x && x.id),
+    deletedIds
   };
 }
 
@@ -446,7 +453,7 @@ function loadStateFromStorage() {
 function loadSessionFromStorage() {
   const defaults = {
     theme: 'dark',
-    accent: 'cyan',
+    accent: 'amber',
     lang: 'tr',
     currentUsername: null,
     adminUnlocked: false
@@ -457,7 +464,7 @@ function loadSessionFromStorage() {
     const p = JSON.parse(raw);
     return {
       theme: p.theme === 'light' ? 'light' : 'dark',
-      accent: ACCENT_PRESETS.some(x => x.id === p.accent) ? p.accent : 'cyan',
+      accent: ACCENT_PRESETS.some(x => x.id === p.accent) ? p.accent : 'amber',
       lang: p.lang === 'en' ? 'en' : 'tr',
       currentUsername: p.currentUsername || null,
       adminUnlocked: !!p.adminUnlocked
@@ -540,6 +547,8 @@ function mergeStateClient(existing, incoming) {
   if (!existing || typeof existing !== 'object') return incoming;
   if (!incoming || typeof incoming !== 'object') return existing;
   const merged = Object.assign({}, existing, incoming);
+  // Silinenler (mezar taslari) birlesir -> silinen kayit geri gelmez
+  merged.deletedIds = Array.from(new Set([].concat(existing.deletedIds || [], incoming.deletedIds || []).map(String)));
   merged.users = _mergeByKey(existing.users, incoming.users, u => u && u.username);
   merged.teams = _mergeByKey(existing.teams, incoming.teams, x => x && x.id);
   merged.tournaments = _mergeTournaments(existing.tournaments, incoming.tournaments);
@@ -821,6 +830,15 @@ function applyDynamicFavicon() {
   } catch {}
 }
 
+// Bir kaydi kalici olarak sil: id'yi/anahtari "mezar tasi" listesine ekle ki
+// birlestirme sirasinda baska bir istemci onu geri getiremesin.
+function tombstone(draft, key) {
+  if (!key) return;
+  draft.deletedIds = Array.isArray(draft.deletedIds) ? draft.deletedIds : [];
+  if (!draft.deletedIds.includes(key)) draft.deletedIds.push(key);
+  if (draft.deletedIds.length > 2000) draft.deletedIds = draft.deletedIds.slice(-2000);
+}
+
 function pushSystemMessage(draft, username, text) {
   const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   draft.dmMessages = draft.dmMessages || [];
@@ -842,8 +860,8 @@ function getUnreadDmCount() {
 
 function calcPlacementPts(rank) {
   const r = Number(rank);
-  // 1.=10, 2.=8, 3.=6, 4.=4, 5.=2, 6.=1, 7. ve sonrasi=0
-  const map = { 1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 1 };
+  // 1.=10, 2.=6, 3.=5, 4.=4, 5.=3, 6.=2, 7.=1, 8.=1, 9. ve sonrasi=0
+  const map = { 1: 10, 2: 6, 3: 5, 4: 4, 5: 3, 6: 2, 7: 1, 8: 1 };
   return map[r] || 0;
 }
 
@@ -1155,6 +1173,33 @@ function renderApp(preserveFocus = true) {
   if (isDrawerOpen) renderDrawerContent();
   restoreFocusSnapshot(focusSnap);
   lastRenderUserKey = getCurrentUser() ? getCurrentUser().username : '__none__';
+  persistViewState();
+}
+
+// Sayfa yenilenince ayni yerde kalmak icin aktif gorunumu kaydet
+function persistViewState() {
+  if (activeView === 'obs' || activeView === 'admin') return;
+  try {
+    sessionStorage.setItem('nvl_view_v1', JSON.stringify({
+      v: activeView, t: activeTournamentId, tab: activeTournamentTab
+    }));
+  } catch {}
+}
+
+// Acilista kaydedilmis gorunumu geri yukle (hash #admin/#obs oncelikli)
+function restoreViewState() {
+  try {
+    const hash = String(window.location.hash || '').toLowerCase();
+    if (hash.startsWith('#admin') || hash.startsWith('#obs')) return;
+    const raw = sessionStorage.getItem('nvl_view_v1');
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s && s.v) {
+      activeView = s.v;
+      if (s.t) activeTournamentId = s.t;
+      if (s.tab) activeTournamentTab = s.tab;
+    }
+  } catch {}
 }
 
 // Sadece icerik alanini (mainBody) ilgili sayfaya gore doldurur.
@@ -1750,16 +1795,26 @@ async function sendForumChatMessage(e) {
    10. TOURNAMENTS & TOURNAMENT CENTER (Slots 3-25, Conditional Room, Chat Lock)
    ============================================================================ */
 function renderTournamentsPage(el) {
+  const active = appData.tournaments.filter(t => t.status !== 'completed');
+  const finished = appData.tournaments.filter(t => t.status === 'completed');
   el.innerHTML = `
-    <div class="animate-page">
-      <div class="flex items-center justify-between gap-4 mb-6">
-        <div>
-          <div class="text-xs font-extrabold uppercase tracking-widest accent-text">PUBG MOBILE ARENA</div>
-          <h1 class="text-2xl font-black">${escapeHtml(t('sec_tournaments'))}</h1>
+    <div class="animate-page space-y-8">
+      <div>
+        <div class="flex items-center justify-between gap-4 mb-6">
+          <div>
+            <div class="text-xs font-extrabold uppercase tracking-widest accent-text">PUBG MOBILE ARENA</div>
+            <h1 class="text-2xl font-black">${escapeHtml(t('sec_tournaments'))}</h1>
+          </div>
+          <button onclick="navigate('home')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">← ${escapeHtml(t('nav_home'))}</button>
         </div>
-        <button onclick="navigate('home')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">← ${escapeHtml(t('nav_home'))}</button>
+        ${renderTournamentGrid(active)}
       </div>
-      ${renderTournamentGrid(appData.tournaments)}
+      ${finished.length > 0 ? `
+        <div>
+          <h2 class="text-lg font-black mb-4">🏁 ${escapeHtml(t('finished_tournaments'))}</h2>
+          ${renderTournamentGrid(finished)}
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -2148,9 +2203,11 @@ function renderOrganizerPage(el) {
     return;
   }
 
-  const myTours = (u.isAdmin || session.adminUnlocked)
+  const allMine = (u.isAdmin || session.adminUnlocked)
     ? appData.tournaments
     : appData.tournaments.filter(t => t.creator === u.username);
+  // Bitmis turnuvalar panelden cikar (ayri "Bitmis Turnuvalar" alaninda gorunur)
+  const myTours = allMine.filter(t => t.status !== 'completed');
 
   if (myTours.length > 0 && (!selectedOrganizerTourId || !myTours.some(x => x.id === selectedOrganizerTourId))) {
     selectedOrganizerTourId = myTours[0].id;
@@ -2272,44 +2329,42 @@ function renderOrganizerPage(el) {
             `}
           </div>
 
-          <!-- Takım Kadro ID'leri: Onaylanan + Güncel (ara değişiklikler gizli) -->
+          <!-- Kadro ID Onayları: SADECE bekleyen değişiklikler görünür -->
           <div>
-            <h3 class="font-extrabold text-sm mb-1">🎮 Takım Kadro ID'leri</h3>
-            <p class="text-[11px] muted-text mb-2">Her oyuncu için <strong>onayladığınız ID</strong> ve <strong>en son girilen ID</strong> görünür. Aradaki değişiklikler gösterilmez. Değişiklik varsa onaylayın.</p>
-            ${(activeTour.joinedTeams || []).length === 0 ? `
-              <div class="theme-elevated rounded-xl p-4 text-xs muted-text">Onaylı takım yok.</div>
-            ` : `
-              <div class="space-y-2">
-                ${activeTour.joinedTeams.map(tid => {
-                  const tm = appData.teams.find(x => x.id === tid);
-                  const roster = getTournamentRoster(activeTour, tid);
-                  const slotRow = (label, cur, appr, kind, i) => {
-                    const curId = String(cur.id || '').trim();
-                    const apprId = String(appr.id || '').trim();
-                    const pending = curId && curId !== apprId;
-                    return `<div class="flex flex-wrap items-center gap-2 py-1">
-                      <span class="w-20 muted-text shrink-0">${label}</span>
-                      <span class="font-mono px-2 py-0.5 rounded-md theme-elevated">${apprId ? escapeHtml(apprId) : '—'}</span>
-                      ${pending ? `<span>→</span>
-                        <span class="font-mono px-2 py-0.5 rounded-md blink-amber" style="background:rgba(245,158,11,0.18);color:#fbbf24;">${escapeHtml(curId)}</span>
-                        <button onclick="approveRosterId('${activeTour.id}','${tid}','${kind}',${i})" class="px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 font-extrabold text-[10px]">Onayla</button>` : ''}
-                    </div>`;
-                  };
-                  const pendingCount = roster.main.filter((p, i) => String(p.id || '').trim() && String(p.id || '').trim() !== String(roster.approvedMain[i].id || '').trim()).length
-                    + roster.sub.filter((p, i) => String(p.id || '').trim() && String(p.id || '').trim() !== String(roster.approvedSub[i].id || '').trim()).length;
-                  return `
-                    <div class="theme-elevated rounded-xl p-3 text-xs">
-                      <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                        <div class="font-bold">${tm ? escapeHtml(tm.name) : tid} <span class="muted-text">[${tm ? escapeHtml(tm.tag) : ''}]</span></div>
-                        ${pendingCount > 0 ? `<button onclick="approveAllRosterIds('${activeTour.id}','${tid}')" class="px-2.5 py-1 rounded-md bg-emerald-500 text-slate-950 font-extrabold text-[10px]">Tümünü Onayla (${pendingCount})</button>` : `<span class="text-emerald-400 text-[10px] font-bold">✓ Güncel</span>`}
-                      </div>
-                      ${[0, 1, 2, 3].map(i => slotRow('Ana ' + (i + 1), roster.main[i], roster.approvedMain[i], 'main', i)).join('')}
-                      ${[0, 1].map(i => slotRow('Yedek ' + (i + 1), roster.sub[i], roster.approvedSub[i], 'sub', i)).join('')}
+            <h3 class="font-extrabold text-sm mb-1">🎮 Kadro ID Onayları</h3>
+            <p class="text-[11px] muted-text mb-2">Sadece onay bekleyen ID değişiklikleri burada görünür. Onayladıkça listeden düşer.</p>
+            ${(() => {
+              const slotRow = (tid, label, cur, appr, kind, i) => {
+                const curId = String(cur.id || '').trim();
+                const apprId = String(appr.id || '').trim();
+                if (!curId || curId === apprId) return ''; // sadece bekleyenler
+                return `<div class="flex flex-wrap items-center gap-2 py-1">
+                  <span class="w-20 muted-text shrink-0">${label}</span>
+                  <span class="font-mono px-2 py-0.5 rounded-md theme-elevated">${apprId ? escapeHtml(apprId) : '(yeni)'}</span>
+                  <span>→</span>
+                  <span class="font-mono px-2 py-0.5 rounded-md blink-amber" style="background:rgba(245,158,11,0.18);color:#fbbf24;">${escapeHtml(curId)}</span>
+                  <button onclick="approveRosterId('${activeTour.id}','${tid}','${kind}',${i})" class="px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 font-extrabold text-[10px]">Onayla</button>
+                </div>`;
+              };
+              const cards = (activeTour.joinedTeams || []).map(tid => {
+                const tm = appData.teams.find(x => x.id === tid);
+                const roster = getTournamentRoster(activeTour, tid);
+                const rows = [0, 1, 2, 3].map(i => slotRow(tid, 'Ana ' + (i + 1), roster.main[i], roster.approvedMain[i], 'main', i)).join('')
+                  + [0, 1].map(i => slotRow(tid, 'Yedek ' + (i + 1), roster.sub[i], roster.approvedSub[i], 'sub', i)).join('');
+                if (!rows.trim()) return '';
+                const pendingCount = roster.main.filter((p, i) => String(p.id || '').trim() && String(p.id || '').trim() !== String(roster.approvedMain[i].id || '').trim()).length
+                  + roster.sub.filter((p, i) => String(p.id || '').trim() && String(p.id || '').trim() !== String(roster.approvedSub[i].id || '').trim()).length;
+                return `
+                  <div class="theme-elevated rounded-xl p-3 text-xs">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                      <div class="font-bold">${tm ? escapeHtml(tm.name) : tid} <span class="muted-text">[${tm ? escapeHtml(tm.tag) : ''}]</span></div>
+                      <button onclick="approveAllRosterIds('${activeTour.id}','${tid}')" class="px-2.5 py-1 rounded-md bg-emerald-500 text-slate-950 font-extrabold text-[10px]">Tümünü Onayla (${pendingCount})</button>
                     </div>
-                  `;
-                }).join('')}
-              </div>
-            `}
+                    ${rows}
+                  </div>`;
+              }).filter(Boolean).join('');
+              return cards || `<div class="theme-elevated rounded-xl p-4 text-xs muted-text">Bekleyen kadro ID değişikliği yok.</div>`;
+            })()}
           </div>
 
           <!-- Yedek Değişim Talepleri (sadece canlı + arkadaş eklemeli turnuvada) -->
@@ -3021,6 +3076,7 @@ async function removeTeamMember(teamId, member) {
 async function disbandTeam(teamId) {
   await saveState(draft => {
     draft.teams = draft.teams.filter(x => x.id !== teamId);
+    tombstone(draft, teamId);
   });
   showToast('Takım silindi.');
 }
@@ -3890,6 +3946,9 @@ async function adminToggleOrg(username) {
     usr.canCreateTournament = !usr.canCreateTournament;
     // Yetki ALINIYORSA: bu kullanicinin tamamlanmamis (acik) turnuvalarini sil
     if (!usr.canCreateTournament && !usr.isAdmin) {
+      (draft.tournaments || []).forEach(tr => {
+        if (tr.creator === username && tr.status !== 'completed') tombstone(draft, tr.id);
+      });
       draft.tournaments = (draft.tournaments || []).filter(
         tr => !(tr.creator === username && tr.status !== 'completed')
       );
@@ -3899,8 +3958,10 @@ async function adminToggleOrg(username) {
 }
 
 async function adminDeleteUser(username) {
+  if (username === ADMIN_LOGIN_ID) { showToast('Admin hesabı silinemez.'); return; }
   await saveState(draft => {
     draft.users = draft.users.filter(u => u.username !== username);
+    tombstone(draft, username);
   });
   showToast('Kullanıcı silindi.');
 }
@@ -3909,20 +3970,22 @@ async function approvePaymentRecord(payId) {
   await saveState(draft => {
     const p = (draft.payments || []).find(x => x.id === payId);
     if (!p || p.status !== 'pending') return;
-    p.status = 'approved';
     const usr = draft.users.find(u => u.username === p.username);
     if (usr) {
       usr.balance = Number(usr.balance || 0) + Number(p.amount || 0);
       pushSystemMessage(draft, usr.username, `${p.amount} N tutarındaki ödemeniz onaylandı ve bakiyenize eklendi!`);
     }
+    // Islenen odemeyi kaldir (tekrar onaylanmasin / geri gelmesin)
+    draft.payments = (draft.payments || []).filter(x => x.id !== payId);
+    tombstone(draft, payId);
   });
   showToast('Ödeme onaylandı ve N bakiyesi tanımlandı.');
 }
 
 async function rejectPaymentRecord(payId) {
   await saveState(draft => {
-    const p = (draft.payments || []).find(x => x.id === payId);
-    if (p && p.status === 'pending') p.status = 'rejected';
+    draft.payments = (draft.payments || []).filter(x => x.id !== payId);
+    tombstone(draft, payId);
   });
   showToast('Ödeme talebi reddedildi.');
 }
@@ -3930,6 +3993,7 @@ async function rejectPaymentRecord(payId) {
 async function deletePaymentRecord(payId) {
   await saveState(draft => {
     draft.payments = (draft.payments || []).filter(x => x.id !== payId);
+    tombstone(draft, payId);
   });
   showToast('Ödeme kaydı silindi.');
 }
@@ -4138,6 +4202,7 @@ document.addEventListener('keydown', (e) => {
 
 // Boot Application
 checkRouteFromLocation();
+restoreViewState();
 renderApp(false);
 pullRemoteState();
 </script>
