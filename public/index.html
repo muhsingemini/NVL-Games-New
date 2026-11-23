@@ -495,10 +495,13 @@ let adminActiveTab = 'cards';
 let visibleAdminPasswords = new Set();
 let teamIdWarningActive = false;
 
-// Durumun "parmak izi" (updatedAt haric). Icerik ayni mi diye karsilastirmak icin.
+// Durumun "parmak izi". Buyuk resim alanlarini (base64 logo/avatar) ve updatedAt'i
+// atlar -> karsilastirma cok hizli olur, ekran kasmaz. Metin verisi (mesaj/skor/kadro)
+// tam karsilastirilir.
+const SIG_SKIP = { updatedAt: 1, siteLogoUrl: 1, siteIconUrl: 1, avatarUrl: 1, bannerUrl: 1, logoUrl: 1 };
 function stateSignature(s) {
   try {
-    return JSON.stringify(s, (k, v) => (k === 'updatedAt' ? undefined : v));
+    return JSON.stringify(s, (k, v) => (SIG_SKIP[k] ? undefined : v));
   } catch { return Math.random().toString(); }
 }
 
