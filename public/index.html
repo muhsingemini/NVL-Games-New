@@ -478,18 +478,35 @@ let adminActiveTab = 'cards';
 let visibleAdminPasswords = new Set();
 let teamIdWarningActive = false;
 
+// Durumun "parmak izi" (updatedAt haric). Icerik ayni mi diye karsilastirmak icin.
+function stateSignature(s) {
+  try {
+    return JSON.stringify(s, (k, v) => (k === 'updatedAt' ? undefined : v));
+  } catch { return Math.random().toString(); }
+}
+
+// Gelen durumu uygula: SADECE icerik gercekten degistiyse yeniden ciz.
+// Bu, her 2 saniyede bir gereksiz yeniden cizimi (ekranin titremesini) onler.
+function applyIncomingState(rawState, persist) {
+  try {
+    const incoming = normalizeState(rawState);
+    if (stateSignature(incoming) === stateSignature(appData)) return false;
+    appData = incoming;
+    if (persist) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch {}
+    }
+    renderApp(true);
+    return true;
+  } catch { return false; }
+}
+
 let syncChannel = null;
 try {
   if (typeof BroadcastChannel !== 'undefined') {
     syncChannel = new BroadcastChannel(CHANNEL_NAME);
     syncChannel.onmessage = (ev) => {
       if (ev?.data?.type === 'STATE_SYNC' && ev.data.state) {
-        const incoming = normalizeState(ev.data.state);
-        if (Number(incoming.updatedAt || 0) >= Number(appData.updatedAt || 0)) {
-          appData = incoming;
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch {}
-          renderApp(true);
-        }
+        applyIncomingState(ev.data.state, true);
       }
     };
   }
@@ -497,13 +514,7 @@ try {
 
 window.addEventListener('storage', (ev) => {
   if (ev.key === STORAGE_KEY && ev.newValue) {
-    try {
-      const incoming = normalizeState(JSON.parse(ev.newValue));
-      if (Number(incoming.updatedAt || 0) >= Number(appData.updatedAt || 0)) {
-        appData = incoming;
-        renderApp(true);
-      }
-    } catch {}
+    try { applyIncomingState(JSON.parse(ev.newValue), false); } catch {}
   }
 });
 
@@ -542,29 +553,32 @@ async function pullRemoteState() {
     if (!res.ok) return;
     const payload = await res.json();
     if (payload && payload.state && typeof payload.state === 'object') {
-      const remoteTs = Number(payload.state.updatedAt || 0);
-      if (remoteTs > Number(appData.updatedAt || 0)) {
-        appData = normalizeState(payload.state);
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch {}
-        renderApp(true);
-      }
+      applyIncomingState(payload.state, true);
     }
   } catch {}
 }
 
 setInterval(() => {
   if (!document.hidden) pullRemoteState();
-}, 2500);
+}, 2000);
 
 /* ============================================================================
    3. DEDICATED SEPARATE #admin ROUTE CHECK
    ============================================================================ */
 function checkRouteFromLocation() {
   try {
-    const hash = String(window.location.hash || '').toLowerCase();
+    const rawHash = String(window.location.hash || '');
+    const hash = rawHash.toLowerCase();
     const params = new URLSearchParams(window.location.search);
     if (hash === '#admin' || hash.startsWith('#admin/') || params.get('page') === 'admin') {
       activeView = 'admin';
+    }
+    // OBS yayin overlay'i: #obs/<turnuvaId>  (OBS Tarayici Kaynagi icin)
+    if (hash === '#obs' || hash.startsWith('#obs/') || params.get('page') === 'obs') {
+      activeView = 'obs';
+      const parts = rawHash.split('/');
+      if (parts[1]) activeTournamentId = parts[1];
+      else if (params.get('t')) activeTournamentId = params.get('t');
     }
   } catch {}
 }
@@ -669,7 +683,8 @@ function getUnreadDmCount() {
 
 function calcPlacementPts(rank) {
   const r = Number(rank);
-  const map = { 1: 10, 2: 6, 3: 5, 4: 4, 5: 3, 6: 2, 7: 1, 8: 1 };
+  // 1.=10, 2.=8, 3.=6, 4.=4, 5.=2, 6.=1, 7. ve sonrasi=0
+  const map = { 1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 1 };
   return map[r] || 0;
 }
 
@@ -691,6 +706,7 @@ function computeTournamentStandings(tour) {
       teamId: tid,
       teamName: tm ? tm.name : tid,
       tag: tm ? tm.tag : '',
+      logo: tm ? (tm.logoUrl || '') : '',
       placePts,
       kills,
       totalPts: placePts + kills
@@ -730,12 +746,14 @@ function navigate(view, tourId = null, tab = null) {
     walletDraft = { cardHolder: '', cardNumber: '', cardExpiry: '', cardCvv: '', senderName: '' };
   }
   activeView = view;
+  if (tourId) activeTournamentId = tourId;
   if (view === 'admin') {
     try { history.replaceState(null, '', '#admin'); } catch {}
-  } else if (window.location.hash === '#admin') {
+  } else if (view === 'obs') {
+    try { history.replaceState(null, '', '#obs/' + (activeTournamentId || '')); } catch {}
+  } else if (window.location.hash && (window.location.hash.startsWith('#admin') || window.location.hash.startsWith('#obs'))) {
     try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch {}
   }
-  if (tourId) activeTournamentId = tourId;
   if (tab) activeTournamentTab = tab;
   if (view === 'profile' && !activeProfileUsername && getCurrentUser()) {
     activeProfileUsername = getCurrentUser().username;
@@ -805,8 +823,11 @@ function renderApp(preserveFocus = true) {
   if (!root) return;
 
   if (activeView === 'obs') {
+    try { document.body.style.background = 'transparent'; document.documentElement.style.background = 'transparent'; } catch {}
     renderObsOverlay(root);
     return;
+  } else {
+    try { document.body.style.background = ''; document.documentElement.style.background = ''; } catch {}
   }
 
   if (activeView === 'admin') {
@@ -1520,8 +1541,9 @@ function renderTournamentCenterPage(el) {
             <div class="theme-card rounded-2xl p-5 space-y-2.5 text-xs">
               <h3 class="font-extrabold text-sm mb-2">Turnuva Özeti</h3>
               <div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Toplam Maç</span><strong>${Number(tour.matches || 4)} Maç</strong></div>
-              <div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Aktif Slot Aralığı</span><strong>Slot 3 – Slot 25 (Slot 1 & 2 Boş)</strong></div>
+              <div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Aktif Slot Aralığı</span><strong>Slot 3 – Slot 25</strong></div>
               <div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Onaylı Takım</span><strong>${approvedTeams.length} / 23</strong></div>
+              ${Array.from({ length: Number(tour.matches || 1) }, (_, i) => i + 1).map(mNo => `<div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Maç #${mNo} Haritası</span><strong>${escapeHtml((tour.maps && tour.maps[mNo]) || tour.map || '-')}</strong></div>`).join('')}
             </div>
           </div>
         </div>
@@ -1553,24 +1575,13 @@ function renderTournamentCenterPage(el) {
         <div class="theme-card rounded-2xl p-6">
           <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div>
-              <h3 class="font-extrabold text-base">Takım Slot Listesi (Slot 1 – Slot 25)</h3>
-              <p class="text-xs muted-text">Slot 1 ve Slot 2 organizasyon için boş bırakılır. Onaylanan takımlar Slot 3'ten Slot 25'e kadar yerleşir.</p>
+              <h3 class="font-extrabold text-base">Takım Slot Listesi (Slot 3 – Slot 25)</h3>
+              <p class="text-xs muted-text">Onaylanan takımlar Slot 3'ten Slot 25'e kadar yerleşir. Toplam 23 slot.</p>
             </div>
             <span class="px-3 py-1 rounded-lg text-xs font-extrabold accent-bg-soft">${remainingSlots} Boş Slot</span>
           </div>
           <div class="space-y-2">
-            ${Array.from({ length: 25 }, (_, i) => i + 1).map(slotNo => {
-              if (slotNo === 1 || slotNo === 2) {
-                return `
-                  <div class="theme-elevated rounded-xl px-4 py-3 flex items-center justify-between opacity-55">
-                    <div class="flex items-center gap-3">
-                      <span class="w-16 text-xs font-black muted-text">Slot #${String(slotNo).padStart(2, '0')}</span>
-                      <span class="text-xs font-semibold muted-text">Boş Slot (Rezerve)</span>
-                    </div>
-                    <span class="text-[11px] muted-text">—</span>
-                  </div>
-                `;
-              }
+            ${Array.from({ length: 23 }, (_, i) => i + 3).map(slotNo => {
               const teamIdx = slotNo - 3;
               const tid = approvedTeams[teamIdx];
               const tm = tid ? appData.teams.find(x => x.id === tid) : null;
@@ -1661,14 +1672,16 @@ function renderTournamentCenterPage(el) {
       <!-- TAB: RESULT / SIRALAMA -->
       ${activeTournamentTab === 'result' ? `
         <div class="theme-card rounded-2xl p-6">
-          <h3 class="font-extrabold text-base mb-3">🏆 Turnuva Sonuçları (Result / Sıralama)</h3>
-          ${tour.status !== 'completed' ? `
-            <div class="theme-elevated rounded-xl p-6 text-center text-xs muted-text">
-              Turnuva henüz tamamlanmadı. Organizatör <strong>"Turnuvayı Bitir & Result Yayınla"</strong> butonuna bastığında final sıralaması burada yayınlanacaktır.
-            </div>
-          ` : standings.length === 0 ? `
-            <div class="theme-elevated rounded-xl p-6 text-center text-xs muted-text">Kayıtlı puan verisi bulunmuyor.</div>
+          <div class="flex items-center gap-2 mb-3">
+            <h3 class="font-extrabold text-base">🏆 Turnuva Sonuçları (Result / Sıralama)</h3>
+            ${tour.status === 'completed'
+              ? `<span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-500/15 text-emerald-400">FİNAL</span>`
+              : `<span class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-rose-500/15 text-rose-400">● CANLI</span>`}
+          </div>
+          ${standings.length === 0 ? `
+            <div class="theme-elevated rounded-xl p-6 text-center text-xs muted-text">Henüz puan verisi girilmedi. Organizatör maç skorlarını girdikçe sıralama burada güncellenecek.</div>
           ` : `
+            ${tour.status !== 'completed' ? `<p class="text-xs muted-text mb-3">Turnuva devam ediyor — sıralama maç skorları girildikçe anlık güncellenir.</p>` : ''}
             <div class="overflow-x-auto">
               <table class="w-full text-left text-xs">
                 <thead>
@@ -1800,13 +1813,16 @@ function renderOrganizerPage(el) {
                 <option value="SOLO">SOLO</option>
               </select>
             </div>
-            <div><label class="block font-bold muted-text mb-1">Harita</label>
+            <div><label class="block font-bold muted-text mb-1">Varsayılan Harita</label>
               <select name="map" class="theme-input w-full rounded-xl px-3.5 py-2.5">
                 <option value="Erangel">Erangel</option>
                 <option value="Miramar">Miramar</option>
                 <option value="Sanhok">Sanhok</option>
                 <option value="Rondo">Rondo</option>
+                <option value="Vikendi">Vikendi</option>
+                <option value="Livik">Livik</option>
               </select>
+              <p class="text-[10px] muted-text mt-1">Her maça ayrı harita turnuva açıldıktan sonra aşağıdan seçilir.</p>
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1845,7 +1861,8 @@ function renderOrganizerPage(el) {
               `).join('')}
             </div>
             <div class="flex flex-wrap gap-2">
-              <button onclick="activeTournamentId='${activeTour.id}'; navigate('obs');" class="btn-ghost px-3.5 py-2 rounded-xl text-xs font-bold">📺 OBS Yayın Ekranı</button>
+              <button onclick="activeTournamentId='${activeTour.id}'; navigate('obs');" class="btn-ghost px-3.5 py-2 rounded-xl text-xs font-bold">📺 OBS Önizle</button>
+              <button onclick="copyObsLink('${activeTour.id}')" class="btn-ghost px-3.5 py-2 rounded-xl text-xs font-bold">🔗 OBS Linkini Kopyala</button>
               ${activeTour.status !== 'completed' ? `
                 <button onclick="finishTournamentNow('${activeTour.id}')" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-extrabold text-xs">🏆 Turnuvayı Bitir & Result Yayınla</button>
               ` : ''}
@@ -1899,6 +1916,12 @@ function renderOrganizerPage(el) {
                   <button onclick="selectedOrganizerMatch=${mNo}; renderApp(false);" class="px-3 py-1 rounded-lg text-xs font-bold ${selectedOrganizerMatch === mNo ? 'btn-accent' : 'theme-elevated'}">Maç #${mNo}</button>
                 `).join('')}
               </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3 text-xs theme-elevated rounded-xl px-3.5 py-2.5">
+              <span class="muted-text font-bold">🗺️ Maç #${selectedOrganizerMatch} Haritası:</span>
+              <select onchange="setMatchMap('${activeTour.id}', ${selectedOrganizerMatch}, this.value)" class="theme-input rounded-lg px-2.5 py-1.5">
+                ${['Erangel', 'Miramar', 'Sanhok', 'Rondo', 'Vikendi', 'Livik'].map(mp => `<option value="${mp}" ${((activeTour.maps && activeTour.maps[selectedOrganizerMatch]) || activeTour.map) === mp ? 'selected' : ''}>${mp}</option>`).join('')}
+              </select>
             </div>
             ${(activeTour.joinedTeams || []).length === 0 ? `
               <div class="theme-elevated rounded-xl p-4 text-xs muted-text">Slotta onaylı takım bulunmuyor.</div>
@@ -1958,9 +1981,14 @@ async function createNewTournament(e) {
     pendingTeams: [],
     joinedTeams: [],
     matchScores: {},
+    maps: {},
     chatLocked: false,
     status: 'open'
   };
+  // Her maca varsayilan haritayi ata (sonradan tek tek degistirilebilir)
+  const matchCount = Number(fd.get('matches') || 4);
+  const defaultMap = String(fd.get('map') || 'Erangel');
+  for (let i = 1; i <= matchCount; i++) tr.maps[i] = defaultMap;
   selectedOrganizerTourId = tr.id;
   await saveState(draft => { draft.tournaments.unshift(tr); });
   showToast('Turnuva başarıyla yayınlandı!');
@@ -2007,6 +2035,16 @@ async function rejectTeamSlot(tourId, teamId) {
   showToast('Başvuru reddedildi.');
 }
 
+async function setMatchMap(tourId, matchNo, mapName) {
+  await saveState(draft => {
+    const tr = draft.tournaments.find(t => t.id === tourId);
+    if (!tr) return;
+    tr.maps = tr.maps || {};
+    tr.maps[matchNo] = mapName;
+  });
+  showToast(`Maç #${matchNo} haritası: ${mapName}`);
+}
+
 async function saveTournamentMatchScores(e, tourId, matchNo) {
   e.preventDefault();
   const fd = new FormData(e.target);
@@ -2027,6 +2065,11 @@ async function saveTournamentMatchScores(e, tourId, matchNo) {
   showToast(`Maç #${matchNo} skorları kaydedildi.`);
 }
 
+function copyObsLink(tourId) {
+  const link = location.origin + location.pathname + '#obs/' + tourId;
+  copyText(link, 'OBS yayın linki kopyalandı! OBS → Kaynaklar → Tarayıcı olarak yapıştırın.');
+}
+
 async function finishTournamentNow(tourId) {
   await saveState(draft => {
     const tr = draft.tournaments.find(t => t.id === tourId);
@@ -2038,23 +2081,38 @@ async function finishTournamentNow(tourId) {
 function renderObsOverlay(el) {
   const tour = appData.tournaments.find(t => t.id === activeTournamentId) || appData.tournaments[0];
   const standings = tour ? computeTournamentStandings(tour) : [];
+  const loggedIn = !!getCurrentUser();
   el.innerHTML = `
-    <div class="min-h-screen bg-slate-950 text-white p-6 flex flex-col justify-between">
-      <div class="max-w-md ml-auto w-full rounded-2xl border accent-border bg-slate-900/95 overflow-hidden shadow-2xl">
-        <div class="px-4 py-3 font-black text-xs flex justify-between" style="background-color: var(--accent); color: var(--accent-contrast);">
-          <span>LIVE STANDINGS · ${escapeHtml(tour?.title || 'NVL GAMES')}</span>
-          <span>PTS</span>
+    <div class="min-h-screen w-full p-5 flex flex-col justify-between text-white" style="background: transparent;">
+      <div class="ml-auto w-full max-w-sm rounded-2xl border accent-border bg-slate-900/90 overflow-hidden shadow-2xl" style="backdrop-filter: blur(4px);">
+        <div class="px-4 py-3 font-black text-xs flex items-center justify-between" style="background-color: var(--accent); color: var(--accent-contrast);">
+          <span class="truncate">🏆 ${escapeHtml(tour?.title || 'NVL GAMES')}</span>
+          <span class="shrink-0 ml-2">● CANLI</span>
         </div>
-        ${standings.length === 0 ? `<div class="p-4 text-xs text-slate-400">Slotta takım bekleniyor...</div>` : standings.map((r, i) => `
-          <div class="px-4 py-2.5 border-b border-white/10 flex items-center justify-between text-xs font-bold">
-            <span><strong class="accent-text mr-2">#${i + 1}</strong> ${escapeHtml(r.teamName)}</span>
-            <span>${r.totalPts}</span>
+        <div class="grid grid-cols-12 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-white/10">
+          <span class="col-span-1">#</span>
+          <span class="col-span-6">Takım</span>
+          <span class="col-span-2 text-center">SIR</span>
+          <span class="col-span-1 text-center">K</span>
+          <span class="col-span-2 text-right">TOP</span>
+        </div>
+        ${standings.length === 0 ? `<div class="p-4 text-xs text-slate-400">Skor bekleniyor...</div>` : standings.map((r, i) => `
+          <div class="grid grid-cols-12 items-center px-3 py-2 border-b border-white/10 text-xs font-bold ${i < 3 ? 'bg-white/5' : ''}">
+            <span class="col-span-1 accent-text font-black">${i + 1}</span>
+            <span class="col-span-6 flex items-center gap-2 min-w-0">
+              <span class="w-6 h-6 rounded-md overflow-hidden bg-slate-800 flex items-center justify-center text-[9px] font-black shrink-0">
+                ${r.logo ? `<img src="${escapeAttr(r.logo)}" class="w-full h-full object-cover">` : escapeHtml(r.tag || '')}
+              </span>
+              <span class="truncate">${escapeHtml(r.teamName)}</span>
+            </span>
+            <span class="col-span-2 text-center text-slate-300">${r.placePts}</span>
+            <span class="col-span-1 text-center text-slate-300">${r.kills}</span>
+            <span class="col-span-2 text-right accent-text font-black">${r.totalPts}</span>
           </div>
         `).join('')}
+        <div class="px-3 py-1.5 text-[9px] text-slate-500 text-right">SIR=Sıralama Puanı · K=Kill · TOP=Toplam</div>
       </div>
-      <div>
-        <button onclick="navigate('organizer')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">← Organizatör Paneline Dön</button>
-      </div>
+      ${loggedIn ? `<div><button onclick="navigate('organizer')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold" style="background: rgba(15,23,42,0.85);">← Organizatör Paneline Dön</button></div>` : '<div></div>'}
     </div>
   `;
 }

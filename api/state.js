@@ -63,13 +63,15 @@ async function ensureTables() {
 
 function mergeByKey(existing, incoming, keyFn) {
   const map = new Map();
-  (Array.isArray(existing) ? existing : []).forEach(function (item) {
-    const k = keyFn(item);
-    if (k !== null && k !== undefined && k !== '') map.set(String(k), item);
-  });
+  // Gonderen istemcinin sirasi esas alinir (once incoming) -> yeni ekrana oynamaz
   (Array.isArray(incoming) ? incoming : []).forEach(function (item) {
     const k = keyFn(item);
     if (k !== null && k !== undefined && k !== '') map.set(String(k), item);
+  });
+  // Baska istemcilerin ekledigi, bu gelende olmayan kayitlar sona eklenir (kimse silinmez)
+  (Array.isArray(existing) ? existing : []).forEach(function (item) {
+    const k = keyFn(item);
+    if (k !== null && k !== undefined && k !== '' && !map.has(String(k))) map.set(String(k), item);
   });
   return Array.from(map.values());
 }
