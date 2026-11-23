@@ -881,8 +881,20 @@ function renderApp(preserveFocus = true) {
               <span class="accent-text">N</span>
             </button>
 
+            <!-- 2b. Takımım (My Team) Icon Button -->
+            ${!(u.canCreateTournament || u.isAdmin) ? `
+            <button onclick="navigate('team')" class="theme-elevated hover:accent-border w-10 h-10 rounded-xl flex items-center justify-center transition ${activeView === 'team' ? 'accent-border accent-text' : ''}" title="${escapeAttr(t('nav_team'))}" aria-label="${escapeAttr(t('nav_team'))}">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </button>
+            ` : ''}
+
             <!-- 3. Message Bubble Icon Button (Directly to the right of Balance Chip) -->
-            <button onclick="toggleDmPanel(true)" class="relative theme-elevated hover:accent-border w-10 h-10 rounded-xl flex items-center justify-center transition" title="${escapeAttr(t('nav_dm'))}" aria-label="${escapeAttr(t('nav_dm'))}">
+            <button onclick="navigate('messages')" class="relative theme-elevated hover:accent-border w-10 h-10 rounded-xl flex items-center justify-center transition ${activeView === 'messages' ? 'accent-border accent-text' : ''}" title="${escapeAttr(t('nav_dm'))}" aria-label="${escapeAttr(t('nav_dm'))}">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
               </svg>
@@ -955,6 +967,7 @@ function renderApp(preserveFocus = true) {
   else if (activeView === 'profile') renderProfilePage(mainEl);
   else if (activeView === 'wallet') renderWalletPage(mainEl);
   else if (activeView === 'settings') renderSettingsPage(mainEl);
+  else if (activeView === 'messages') renderMessagesPage(mainEl);
   else renderHomePage(mainEl);
 
   if (isDmPanelOpen) renderDmDrawerContent();
@@ -1078,7 +1091,98 @@ function openDmWith(username) {
   if (!u) { openAuthModal('login'); return; }
   selectedDmPeer = username;
   dmAnimationKey++;
-  toggleDmPanel(true);
+  navigate('messages');
+}
+
+// DM artik ayri bir sayfa olarak acilir (yan panel degil)
+function renderMessagesPage(el) {
+  const u = getCurrentUser();
+  if (!u) {
+    el.innerHTML = `<div class="theme-card rounded-2xl p-8 text-center"><p class="text-sm muted-text mb-4">Mesajlar için giriş yapmalısınız.</p><button onclick="openAuthModal('login')" class="btn-accent px-5 py-2.5 rounded-xl text-xs">${escapeHtml(t('btn_login'))}</button></div>`;
+    return;
+  }
+  const me = u.username;
+  const relatedPeers = appData.dmMessages
+    .filter(m => m.from === me || m.to === me)
+    .map(m => (m.from === me ? m.to : m.from));
+  const otherUsers = getPublicUsers().filter(x => x.username !== me).map(x => x.username);
+  const peers = [...new Set([
+    ...(selectedDmPeer ? [selectedDmPeer] : []),
+    ...relatedPeers,
+    ...otherUsers
+  ])];
+  if (!selectedDmPeer && peers.length > 0) selectedDmPeer = peers[0];
+
+  const thread = appData.dmMessages.filter(
+    m => (m.from === me && m.to === selectedDmPeer) || (m.from === selectedDmPeer && m.to === me)
+  );
+
+  el.innerHTML = `
+    <div class="animate-page space-y-4">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="text-xs font-extrabold uppercase tracking-widest accent-text">${escapeHtml(t('dm_title'))}</div>
+          <h1 class="text-2xl font-black">💬 ${escapeHtml(t('dm_title'))}</h1>
+        </div>
+        <button onclick="navigate('home')" class="btn-ghost px-4 py-2 rounded-xl text-xs font-bold">← ${escapeHtml(t('nav_home'))}</button>
+      </div>
+
+      <div class="theme-card rounded-2xl overflow-hidden grid grid-cols-1 sm:grid-cols-3" style="min-height: 60vh;">
+        <!-- Conversation list -->
+        <div class="border-b sm:border-b-0 sm:border-r p-3 space-y-1.5 overflow-y-auto max-h-40 sm:max-h-[65vh]" style="border-color: var(--border); background-color: var(--bg-main);">
+          ${peers.length === 0 ? `
+            <div class="text-xs muted-text p-4 text-center">Henüz konuşma yok.</div>
+          ` : peers.map(peer => {
+            const isActive = peer === selectedDmPeer;
+            const unread = appData.dmMessages.filter(m => m.to === me && m.from === peer && !m.read).length;
+            return `
+              <button onclick="selectDmThread('${escapeAttr(peer)}')" class="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold flex items-center justify-between transition ${isActive ? 'btn-accent' : 'theme-elevated hover:accent-border'}">
+                <span class="truncate">${peer === 'nvl_sistem' ? '🔔 NVL Sistem' : '@' + escapeHtml(peer)}</span>
+                ${unread > 0 ? `<span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">${unread}</span>` : ''}
+              </button>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Active thread -->
+        <div class="sm:col-span-2 flex flex-col justify-between p-4 overflow-hidden" style="max-height: 65vh;">
+          ${!selectedDmPeer ? `
+            <div class="flex-1 flex items-center justify-center text-xs muted-text">Soldan bir sohbet seçin.</div>
+          ` : `
+            <div class="pb-3 mb-3 border-b flex items-center justify-between text-xs shrink-0" style="border-color: var(--border);">
+              <strong class="truncate text-sm">${selectedDmPeer === 'nvl_sistem' ? '🔔 NVL Sistem Bildirimleri' : '@' + escapeHtml(selectedDmPeer)}</strong>
+              ${selectedDmPeer !== 'nvl_sistem' ? `<button onclick="openProfile('${escapeAttr(selectedDmPeer)}');" class="text-xs accent-text font-bold hover:underline">Profili Gör →</button>` : ''}
+            </div>
+            <div id="dmScrollArea" class="flex-1 overflow-y-auto space-y-2.5 pr-1 mb-3">
+              ${thread.length === 0 ? `
+                <div class="theme-elevated rounded-xl p-5 text-center text-xs muted-text">Henüz mesaj yok. İlk mesajı gönder!</div>
+              ` : thread.map(m => {
+                const isMine = m.from === me;
+                return `
+                  <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs ${isMine ? 'btn-accent' : 'theme-elevated'}">
+                      <div class="text-[10px] opacity-75 mb-0.5">${isMine ? 'Sen' : (m.from === 'nvl_sistem' ? 'NVL Sistem' : '@' + escapeHtml(m.from))} · ${escapeHtml(m.time)}</div>
+                      <div class="leading-relaxed">${escapeHtml(m.text)}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            ${selectedDmPeer !== 'nvl_sistem' ? `
+              <form onsubmit="sendDirectMessage(event)" class="flex gap-2 pt-2 border-t shrink-0" style="border-color: var(--border);">
+                <input id="dmMsgInput" class="theme-input flex-1 rounded-xl px-3.5 py-2.5 text-xs" placeholder="Mesaj yaz..." required>
+                <button type="submit" class="btn-accent px-4 py-2.5 rounded-xl text-xs">Gönder</button>
+              </form>
+            ` : `
+              <div class="text-[11px] text-center muted-text pt-2 border-t" style="border-color: var(--border);">Sistem bildirim kanalı salt okunurdur.</div>
+            `}
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+  const sc = document.getElementById('dmScrollArea');
+  if (sc) sc.scrollTop = sc.scrollHeight;
 }
 
 async function markPeerMessagesRead(peer) {
@@ -1098,7 +1202,8 @@ async function selectDmThread(peer) {
   selectedDmPeer = peer;
   dmAnimationKey++;
   await markPeerMessagesRead(peer);
-  renderDmDrawerContent();
+  if (activeView === 'messages') renderApp(false);
+  else renderDmDrawerContent();
 }
 
 async function sendDirectMessage(e) {
@@ -1166,7 +1271,7 @@ function renderDrawerContent() {
         <button onclick="navigate('home')" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center gap-2.5">🏠 ${escapeHtml(t('nav_home'))}</button>
         <button onclick="navigate('tournaments')" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center gap-2.5">🎮 ${escapeHtml(t('nav_tournaments'))}</button>
         <button onclick="navigate('forum')" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center gap-2.5">💬 ${escapeHtml(t('nav_forum'))}</button>
-        ${u ? `<button onclick="toggleDrawer(false); toggleDmPanel(true);" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center justify-between"><span>✉️ ${escapeHtml(t('nav_dm'))}</span>${unreadDm > 0 ? `<span class="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">${unreadDm}</span>` : ''}</button>` : ''}
+        ${u ? `<button onclick="navigate('messages')" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center justify-between"><span>✉️ ${escapeHtml(t('nav_dm'))}</span>${unreadDm > 0 ? `<span class="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">${unreadDm}</span>` : ''}</button>` : ''}
         <button onclick="navigate('wallet')" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center gap-2.5">💳 ${escapeHtml(t('nav_wallet'))}</button>
         <button onclick="navigate('team')" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center gap-2.5">🛡️ ${escapeHtml(t('nav_team'))}</button>
         ${isOrg ? `<button onclick="navigate('organizer')" class="w-full px-3.5 py-2.5 rounded-xl theme-elevated hover:accent-border text-left flex items-center gap-2.5">🏆 ${escapeHtml(t('nav_organizer'))}</button>` : ''}
@@ -1726,6 +1831,13 @@ async function requestJoinTournament(tourId) {
   if (!tour) return;
   if ((tour.pendingTeams || []).includes(myTeam.id) || (tour.joinedTeams || []).includes(myTeam.id)) return;
 
+  // Oda kodu + sifreli turnuvalar: takimda en az 4 oyuncu zorunlu.
+  // Arkadas eklemeli (oda kodsuz) turnuvalar: takim olmasi yeterli.
+  if (tour.isRoomCoded && (myTeam.mainPlayers || []).length < 4) {
+    showToast('Bu turnuvaya katılmak için takımınızda en az 4 oyuncu olmalı (davet koduyla oyuncu ekleyin).');
+    return;
+  }
+
   if (Number(tour.entryFee) > 0 && Number(u.balance || 0) < Number(tour.entryFee)) {
     showToast(`Yetersiz N bakiyesi. Gerekli: ${tour.entryFee} N`);
     return;
@@ -1808,9 +1920,7 @@ function renderOrganizerPage(el) {
             <div><label class="block font-bold muted-text mb-1">Turnuva Adı</label><input name="title" class="theme-input w-full rounded-xl px-3.5 py-2.5" required placeholder="Örn: NVL Pro Cup #1"></div>
             <div><label class="block font-bold muted-text mb-1">Mod</label>
               <select name="mode" class="theme-input w-full rounded-xl px-3.5 py-2.5">
-                <option value="SQUAD">SQUAD</option>
-                <option value="DUO">DUO</option>
-                <option value="SOLO">SOLO</option>
+                <option value="SQUAD">Takımlı (SQUAD)</option>
               </select>
             </div>
             <div><label class="block font-bold muted-text mb-1">Varsayılan Harita</label>
@@ -2127,7 +2237,21 @@ function renderTeamPage(el) {
     return;
   }
 
+  const isOrgUser = !!(u.canCreateTournament || u.isAdmin || session.adminUnlocked);
   const myTeam = getUserTeam(u.username);
+  if (isOrgUser && !myTeam) {
+    el.innerHTML = `
+      <div class="animate-page max-w-xl mx-auto">
+        <div class="theme-card rounded-2xl p-8 text-center">
+          <div class="text-4xl mb-3">🏆</div>
+          <h2 class="text-xl font-black mb-2">Organizatör Hesabı</h2>
+          <p class="text-sm muted-text mb-5">Organizatör yetkisine sahip hesaplar takım kuramaz veya takıma katılamaz. Turnuva yönetimi için Organizatör Paneli'ni kullanın.</p>
+          <button onclick="navigate('organizer')" class="btn-accent px-5 py-2.5 rounded-xl text-xs">Organizatör Paneline Git</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
   if (!myTeam) {
     el.innerHTML = `
       <div class="animate-page max-w-xl mx-auto space-y-6">
@@ -2229,6 +2353,24 @@ function renderTeamPage(el) {
         </form>
       </div>
 
+      <!-- Katıldığınız / Başvurduğunuz Turnuvalar -->
+      <div class="theme-card rounded-2xl p-6">
+        <h3 class="font-extrabold text-base mb-3">🏆 Turnuvalarınız</h3>
+        ${(() => {
+          const teamTours = appData.tournaments.filter(tr => (tr.joinedTeams || []).includes(myTeam.id) || (tr.pendingTeams || []).includes(myTeam.id));
+          if (teamTours.length === 0) return `<div class="theme-elevated rounded-xl p-4 text-xs muted-text">Henüz bir turnuvaya katılmadınız. Turnuvalar sayfasından başvurabilirsiniz.</div>`;
+          return `<div class="space-y-2">${teamTours.map(tr => {
+            const joined = (tr.joinedTeams || []).includes(myTeam.id);
+            return `
+              <div class="theme-elevated rounded-xl px-4 py-3 flex items-center justify-between text-xs">
+                <button onclick="navigate('tournament_center', '${tr.id}')" class="font-bold hover:accent-text text-left">${escapeHtml(tr.title)} <span class="muted-text">· ${escapeHtml((tr.date || ''))} ${escapeHtml((tr.time || ''))}</span></button>
+                <span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${joined ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-300'}">${joined ? '✓ Onaylı' : '⏳ Onay Bekliyor'}</span>
+              </div>
+            `;
+          }).join('')}</div>`;
+        })()}
+      </div>
+
       <!-- Team Members & Team Chat -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="theme-card rounded-2xl p-6">
@@ -2267,6 +2409,10 @@ async function createUserTeam(e) {
   e.preventDefault();
   const u = getCurrentUser();
   if (!u) return;
+  if (u.canCreateTournament || u.isAdmin) {
+    showToast('Organizatör yetkisine sahip hesaplar takım kuramaz.');
+    return;
+  }
   const fd = new FormData(e.target);
   const code = 'NVL-' + Math.floor(1000 + Math.random() * 9000);
   await saveState(draft => {
@@ -2332,6 +2478,10 @@ async function joinExistingTeam(e) {
   e.preventDefault();
   const u = getCurrentUser();
   if (!u) return;
+  if (u.canCreateTournament || u.isAdmin) {
+    showToast('Organizatör yetkisine sahip hesaplar takıma katılamaz.');
+    return;
+  }
   const code = String(new FormData(e.target).get('inviteCode') || '').trim().toUpperCase();
   let ok = false;
   await saveState(draft => {
@@ -3220,7 +3370,14 @@ async function adminAddBalance(username, amount) {
 async function adminToggleOrg(username) {
   await saveState(draft => {
     const usr = draft.users.find(u => u.username === username);
-    if (usr) usr.canCreateTournament = !usr.canCreateTournament;
+    if (!usr) return;
+    usr.canCreateTournament = !usr.canCreateTournament;
+    // Yetki ALINIYORSA: bu kullanicinin tamamlanmamis (acik) turnuvalarini sil
+    if (!usr.canCreateTournament && !usr.isAdmin) {
+      draft.tournaments = (draft.tournaments || []).filter(
+        tr => !(tr.creator === username && tr.status !== 'completed')
+      );
+    }
   });
   showToast('Organizatör yetkisi güncellendi.');
 }
