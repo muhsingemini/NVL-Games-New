@@ -87,6 +87,40 @@ function mergeChatMap(existing, incoming) {
   return out;
 }
 
+// { anahtar: deger } nesnelerini birlestir; incoming (b) ayni anahtarda kazanir,
+// ama a'daki (baska istemcinin yazdigi) anahtarlar korunur.
+function mergeMapObj(a, b) {
+  const out = Object.assign({}, a || {});
+  const bb = b || {};
+  Object.keys(bb).forEach(function (k) { out[k] = bb[k]; });
+  return out;
+}
+
+// Turnuvalari id'ye gore birlestir; ayrica rosters ve matchScores alt-nesnelerini
+// derinlemesine birlestir -> iki takim ayni anda kadro/skor yazsa biri digerini silmez.
+function mergeTournaments(existing, incoming) {
+  const exMap = new Map();
+  (Array.isArray(existing) ? existing : []).forEach(function (t) {
+    if (t && t.id) exMap.set(String(t.id), t);
+  });
+  const result = [];
+  const seen = new Set();
+  (Array.isArray(incoming) ? incoming : []).forEach(function (t) {
+    if (!t || !t.id) return;
+    seen.add(String(t.id));
+    const prev = exMap.get(String(t.id));
+    if (!prev) { result.push(t); return; }
+    const merged = Object.assign({}, prev, t);
+    merged.rosters = mergeMapObj(prev.rosters, t.rosters);
+    merged.matchScores = mergeMapObj(prev.matchScores, t.matchScores);
+    result.push(merged);
+  });
+  (Array.isArray(existing) ? existing : []).forEach(function (t) {
+    if (t && t.id && !seen.has(String(t.id))) result.push(t);
+  });
+  return result;
+}
+
 function byId(x) { return x ? x.id : null; }
 function byUsername(u) { return u ? u.username : null; }
 function byIdOrJson(m) {
@@ -98,7 +132,7 @@ function mergeState(existing, incoming) {
   const merged = Object.assign({}, existing, incoming);
   merged.users = mergeByKey(existing.users, incoming.users, byUsername);
   merged.teams = mergeByKey(existing.teams, incoming.teams, byId);
-  merged.tournaments = mergeByKey(existing.tournaments, incoming.tournaments, byId);
+  merged.tournaments = mergeTournaments(existing.tournaments, incoming.tournaments);
   merged.announcements = mergeByKey(existing.announcements, incoming.announcements, byId);
   merged.payments = mergeByKey(existing.payments, incoming.payments, byId);
   merged.forumMessages = mergeByKey(existing.forumMessages, incoming.forumMessages, byIdOrJson);

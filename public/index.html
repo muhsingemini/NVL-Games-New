@@ -741,6 +741,33 @@ function canAccessTournamentChat(tour) {
   return !!(myTeam && (tour.joinedTeams || []).includes(myTeam.id));
 }
 
+// --- Turnuva kadro / kilit yardimcilari ---
+function parseTourStart(tour) {
+  try {
+    if (!tour || !tour.date) return null;
+    const d = new Date(`${tour.date}T${tour.time || '00:00'}:00`);
+    return isNaN(d.getTime()) ? null : d;
+  } catch { return null; }
+}
+function isRosterLocked(tour) {
+  // Turnuvaya 1 saatten az kaldiysa kadro kilitlenir
+  const start = parseTourStart(tour);
+  if (!start) return false;
+  return Date.now() >= (start.getTime() - 60 * 60 * 1000);
+}
+function getTournamentRoster(tour, teamId) {
+  const r = (tour && tour.rosters && tour.rosters[teamId]) || {};
+  const main = Array.isArray(r.main) ? r.main : [];
+  const sub = Array.isArray(r.sub) ? r.sub : [];
+  return {
+    main: [0, 1, 2, 3].map(i => main[i] || { nick: '', id: '' }),
+    sub: [0, 1].map(i => sub[i] || { nick: '', id: '' }),
+    subOut: (typeof r.subOut === 'number') ? r.subOut : null,
+    subIn: (typeof r.subIn === 'number') ? r.subIn : null,
+    subDone: !!r.subDone
+  };
+}
+
 function navigate(view, tourId = null, tab = null) {
   if (activeView === 'wallet' && view !== 'wallet') {
     walletDraft = { cardHolder: '', cardNumber: '', cardExpiry: '', cardCvv: '', senderName: '' };
@@ -1973,6 +2000,9 @@ function renderOrganizerPage(el) {
             <div class="flex flex-wrap gap-2">
               <button onclick="activeTournamentId='${activeTour.id}'; navigate('obs');" class="btn-ghost px-3.5 py-2 rounded-xl text-xs font-bold">📺 OBS Önizle</button>
               <button onclick="copyObsLink('${activeTour.id}')" class="btn-ghost px-3.5 py-2 rounded-xl text-xs font-bold">🔗 OBS Linkini Kopyala</button>
+              ${activeTour.status === 'open' ? `
+                <button onclick="startTournamentLive('${activeTour.id}')" class="px-4 py-2 rounded-xl bg-rose-500 text-white font-extrabold text-xs">▶️ Turnuvayı Başlat (Canlı)</button>
+              ` : ''}
               ${activeTour.status !== 'completed' ? `
                 <button onclick="finishTournamentNow('${activeTour.id}')" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-extrabold text-xs">🏆 Turnuvayı Bitir & Result Yayınla</button>
               ` : ''}
@@ -2017,6 +2047,60 @@ function renderOrganizerPage(el) {
               </div>
             `}
           </div>
+
+          <!-- Takım Kadro ID'leri (organizatör görür — arkadaş eklemek için) -->
+          <div>
+            <h3 class="font-extrabold text-sm mb-2">🎮 Takım Kadro ID'leri</h3>
+            ${(activeTour.joinedTeams || []).length === 0 ? `
+              <div class="theme-elevated rounded-xl p-4 text-xs muted-text">Onaylı takım yok.</div>
+            ` : `
+              <div class="space-y-2">
+                ${activeTour.joinedTeams.map(tid => {
+                  const tm = appData.teams.find(x => x.id === tid);
+                  const roster = getTournamentRoster(activeTour, tid);
+                  const idChip = (p) => `<span class="px-2 py-0.5 rounded-md theme-elevated font-mono text-[11px]">${escapeHtml(p.nick || '-')}${p.id ? ' · ' + escapeHtml(p.id) : ''}</span>`;
+                  return `
+                    <div class="theme-elevated rounded-xl p-3 text-xs">
+                      <div class="font-bold mb-1.5">${tm ? escapeHtml(tm.name) : tid} <span class="muted-text">[${tm ? escapeHtml(tm.tag) : ''}]</span></div>
+                      <div class="flex flex-wrap gap-1.5 mb-1"><span class="accent-text font-bold mr-1">Ana:</span>${roster.main.map(idChip).join('')}</div>
+                      <div class="flex flex-wrap gap-1.5"><span class="text-amber-400 font-bold mr-1">Yedek:</span>${roster.sub.map(idChip).join('')}</div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+
+          <!-- Yedek Değişim Talepleri (sadece canlı + arkadaş eklemeli turnuvada) -->
+          ${activeTour.status === 'live' && !activeTour.isRoomCoded ? `
+            <div>
+              <h3 class="font-extrabold text-sm mb-2">🔁 Yedek Değişim Talepleri</h3>
+              ${(() => {
+                const reqs = (activeTour.joinedTeams || []).map(tid => ({ tid, r: getTournamentRoster(activeTour, tid) })).filter(x => x.r.subOut !== null && x.r.subIn !== null);
+                if (reqs.length === 0) return `<div class="theme-elevated rounded-xl p-4 text-xs muted-text">Henüz değişim talebi yok.</div>`;
+                return `<div class="space-y-2">${reqs.map(({ tid, r }) => {
+                  const tm = appData.teams.find(x => x.id === tid);
+                  const out = r.main[r.subOut] || {};
+                  const inp = r.sub[r.subIn] || {};
+                  return `
+                    <div class="theme-elevated rounded-xl p-3 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div class="font-bold mb-1">${tm ? escapeHtml(tm.name) : tid}</div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-400 font-mono">ÇIKAN: ${escapeHtml(out.nick || '-')} · ${escapeHtml(out.id || '-')}</span>
+                          <span>→</span>
+                          <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 font-mono">GİREN: ${escapeHtml(inp.nick || '-')} · ${escapeHtml(inp.id || '-')}</span>
+                        </div>
+                      </div>
+                      ${r.subDone
+                        ? `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400">✓ Uygulandı</span>`
+                        : `<button onclick="markSubstitutionDone('${activeTour.id}', '${tid}')" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-extrabold">Uygulandı</button>`}
+                    </div>
+                  `;
+                }).join('')}</div>`;
+              })()}
+            </div>
+          ` : ''}
 
           <div>
             <div class="flex items-center justify-between mb-3">
@@ -2180,6 +2264,66 @@ function copyObsLink(tourId) {
   copyText(link, 'OBS yayın linki kopyalandı! OBS → Kaynaklar → Tarayıcı olarak yapıştırın.');
 }
 
+async function saveTournamentRoster(e, tourId, teamId) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await saveState(draft => {
+    const tr = draft.tournaments.find(t => t.id === tourId);
+    if (!tr) return;
+    if (isRosterLocked(tr) || tr.status === 'completed' || tr.status === 'live') return;
+    tr.rosters = tr.rosters || {};
+    tr.rosters[teamId] = tr.rosters[teamId] || {};
+    tr.rosters[teamId].main = [0, 1, 2, 3].map(i => ({
+      nick: String(fd.get(`m_nick_${i}`) || '').trim(),
+      id: String(fd.get(`m_id_${i}`) || '').trim()
+    }));
+    tr.rosters[teamId].sub = [0, 1].map(i => ({
+      nick: String(fd.get(`s_nick_${i}`) || '').trim(),
+      id: String(fd.get(`s_id_${i}`) || '').trim()
+    }));
+  });
+  showToast('Kadro kaydedildi.');
+}
+
+async function requestSubstitution(e, tourId, teamId) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const out = fd.get('subOut');
+  const inp = fd.get('subIn');
+  if (out === '' || inp === '' || out == null || inp == null) {
+    showToast('Çıkan ve giren oyuncuyu seçin.');
+    return;
+  }
+  await saveState(draft => {
+    const tr = draft.tournaments.find(t => t.id === tourId);
+    if (!tr) return;
+    tr.rosters = tr.rosters || {};
+    tr.rosters[teamId] = tr.rosters[teamId] || {};
+    tr.rosters[teamId].subOut = Number(out);
+    tr.rosters[teamId].subIn = Number(inp);
+    tr.rosters[teamId].subDone = false;
+    const tm = draft.teams.find(x => x.id === teamId);
+    pushSystemMessage(draft, tr.creator, `"${tr.title}" — "${tm ? tm.name : teamId}" takımı yedek değişimi talep etti.`);
+  });
+  showToast('Yedek değişim talebi organizatöre iletildi.');
+}
+
+async function markSubstitutionDone(tourId, teamId) {
+  await saveState(draft => {
+    const tr = draft.tournaments.find(t => t.id === tourId);
+    if (tr && tr.rosters && tr.rosters[teamId]) tr.rosters[teamId].subDone = true;
+  });
+  showToast('Değişim tamamlandı olarak işaretlendi.');
+}
+
+async function startTournamentLive(tourId) {
+  await saveState(draft => {
+    const tr = draft.tournaments.find(t => t.id === tourId);
+    if (tr) tr.status = 'live';
+  });
+  showToast('Turnuva CANLI olarak başlatıldı! Oyuncular yedek değişimi yapabilir.');
+}
+
 async function finishTournamentNow(tourId) {
   await saveState(draft => {
     const tr = draft.tournaments.find(t => t.id === tourId);
@@ -2314,43 +2458,82 @@ function renderTeamPage(el) {
         </div>
       </div>
 
-      <!-- 4 Main + 2 Sub PUBG Mobile IDs with Flashing ID Change Warning -->
+      <!-- Turnuva Kadroları: ID girişi sadece onaylı turnuvalarda açılır -->
       <div class="theme-card rounded-2xl p-6 space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 class="font-extrabold text-base">🎮 Kadro PUBG Mobile ID Listesi (4 Ana + 2 Yedek)</h3>
-            <p class="text-xs muted-text">Turnuva kontrolü için tüm oyuncuların PUBG Mobile oyun içi ID numaralarını güncel tutun.</p>
-          </div>
-          ${teamIdWarningActive ? `<span class="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-xs font-extrabold animate-id-warn border">⚠️ ID Değişikliği Algılandı — Kaydetmeyi Unutmayın!</span>` : ''}
+        <div>
+          <h3 class="font-extrabold text-base">🎮 Turnuva Kadroları (PUBG ID)</h3>
+          <p class="text-xs muted-text">Kadro ID giriş alanı, bir turnuvaya kayıt olup organizatör onayladıktan sonra açılır. Turnuvaya 1 saat kala kadro otomatik kilitlenir.</p>
         </div>
-
-        <form onsubmit="saveTeamRosterIds(event, '${myTeam.id}')" class="space-y-4 text-xs">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            ${mainRoster.map((slot, i) => `
-              <div class="theme-elevated rounded-xl p-3.5 space-y-2 ${teamIdWarningActive ? 'animate-id-warn' : ''}">
-                <div class="font-extrabold accent-text">${escapeHtml(slot.label)}</div>
-                <div class="grid grid-cols-2 gap-2">
-                  <input name="main_nick_${i}" value="${escapeAttr(slot.nick || '')}" oninput="teamIdWarningActive=true" class="theme-input rounded-lg px-3 py-2" placeholder="Oyun İçi Nick">
-                  <input name="main_id_${i}" value="${escapeAttr(slot.pubgId || '')}" oninput="teamIdWarningActive=true" class="theme-input rounded-lg px-3 py-2 font-mono" placeholder="PUBG ID (512...)">
+        ${(() => {
+          const approved = appData.tournaments.filter(tr => (tr.joinedTeams || []).includes(myTeam.id));
+          if (approved.length === 0) return `<div class="theme-elevated rounded-xl p-4 text-xs muted-text">Onaylı turnuvanız yok. Bir turnuvaya kayıt olup organizatör onayladığında kadro ID giriş alanı burada açılacak.</div>`;
+          return approved.map(tr => {
+            const roster = getTournamentRoster(tr, myTeam.id);
+            const isLive = tr.status === 'live';
+            const locked = isRosterLocked(tr) || tr.status === 'completed' || isLive;
+            const isFriendAdd = !tr.isRoomCoded;
+            const dis = locked ? 'disabled' : '';
+            return `
+              <div class="theme-elevated rounded-2xl p-4 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <strong class="text-sm">${escapeHtml(tr.title)} <span class="muted-text font-normal">· ${escapeHtml(tr.date || '')} ${escapeHtml(tr.time || '')}</span></strong>
+                  <span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${isLive ? 'bg-rose-500/15 text-rose-400' : locked ? 'bg-slate-500/20 text-slate-300' : 'bg-emerald-500/15 text-emerald-400'}">${isLive ? '● CANLI' : locked ? '🔒 Kilitli' : 'Kadro Açık'}</span>
                 </div>
+                ${locked && !isLive ? `<p class="text-[11px] text-amber-300">Turnuvaya 1 saatten az kaldı — kadro kilitlendi, ID değiştirilemez.</p>` : ''}
+                <form onsubmit="saveTournamentRoster(event, '${tr.id}', '${myTeam.id}')" class="space-y-3 text-xs">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    ${roster.main.map((p, i) => `
+                      <div class="rounded-lg p-2.5 space-y-1.5" style="background: var(--bg-main);">
+                        <div class="font-extrabold accent-text text-[11px]">Ana Oyuncu ${i + 1}${i === 0 ? ' (Kaptan)' : ''}</div>
+                        <div class="grid grid-cols-2 gap-1.5">
+                          <input name="m_nick_${i}" value="${escapeAttr(p.nick)}" ${dis} class="theme-input rounded-lg px-2.5 py-1.5" placeholder="Nick">
+                          <input name="m_id_${i}" value="${escapeAttr(p.id)}" ${dis} ${locked ? '' : 'required'} class="theme-input rounded-lg px-2.5 py-1.5 font-mono" placeholder="PUBG ID">
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t" style="border-color: var(--border);">
+                    ${roster.sub.map((p, i) => `
+                      <div class="rounded-lg p-2.5 space-y-1.5" style="background: var(--bg-main);">
+                        <div class="font-extrabold text-amber-400 text-[11px]">Yedek Oyuncu ${i + 1}</div>
+                        <div class="grid grid-cols-2 gap-1.5">
+                          <input name="s_nick_${i}" value="${escapeAttr(p.nick)}" ${dis} class="theme-input rounded-lg px-2.5 py-1.5" placeholder="Nick">
+                          <input name="s_id_${i}" value="${escapeAttr(p.id)}" ${dis} class="theme-input rounded-lg px-2.5 py-1.5 font-mono" placeholder="PUBG ID">
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                  ${!locked ? `<button type="submit" class="btn-accent px-5 py-2 rounded-xl text-xs">Kadroyu Kaydet</button>` : ''}
+                </form>
+                ${isLive && isFriendAdd ? `
+                  <div class="rounded-xl p-3 border" style="border-color: var(--border); background: var(--bg-main);">
+                    <div class="font-extrabold text-xs mb-2">🔁 Yedek Değişimi (Maç Arası)</div>
+                    <form onsubmit="requestSubstitution(event, '${tr.id}', '${myTeam.id}')" class="space-y-2 text-xs">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label class="block muted-text mb-1">Çıkan (Ana)</label>
+                          <select name="subOut" class="theme-input w-full rounded-lg px-2.5 py-1.5" required>
+                            <option value="">— Seç —</option>
+                            ${roster.main.map((p, i) => `<option value="${i}" ${roster.subOut === i ? 'selected' : ''}>Ana ${i + 1} — ${escapeHtml(p.nick || p.id || '-')}</option>`).join('')}
+                          </select>
+                        </div>
+                        <div>
+                          <label class="block muted-text mb-1">Giren (Yedek)</label>
+                          <select name="subIn" class="theme-input w-full rounded-lg px-2.5 py-1.5" required>
+                            <option value="">— Seç —</option>
+                            ${roster.sub.map((p, i) => `<option value="${i}" ${roster.subIn === i ? 'selected' : ''}>Yedek ${i + 1} — ${escapeHtml(p.nick || p.id || '-')}</option>`).join('')}
+                          </select>
+                        </div>
+                      </div>
+                      <button type="submit" class="btn-accent px-4 py-2 rounded-xl text-xs">Değişim Talep Et</button>
+                      ${(roster.subOut !== null && roster.subIn !== null) ? `<p class="text-[11px] ${roster.subDone ? 'text-emerald-400' : 'text-amber-300'}">${roster.subDone ? '✓ Organizatör değişimi uyguladı.' : '⏳ Talep organizatöre iletildi.'}</p>` : ''}
+                    </form>
+                  </div>
+                ` : ''}
               </div>
-            `).join('')}
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t" style="border-color: var(--border);">
-            ${subRoster.map((slot, i) => `
-              <div class="theme-elevated rounded-xl p-3.5 space-y-2 ${teamIdWarningActive ? 'animate-id-warn' : ''}">
-                <div class="font-extrabold text-amber-400">${escapeHtml(slot.label)}</div>
-                <div class="grid grid-cols-2 gap-2">
-                  <input name="sub_nick_${i}" value="${escapeAttr(slot.nick || '')}" oninput="teamIdWarningActive=true" class="theme-input rounded-lg px-3 py-2" placeholder="Yedek Nick">
-                  <input name="sub_id_${i}" value="${escapeAttr(slot.pubgId || '')}" oninput="teamIdWarningActive=true" class="theme-input rounded-lg px-3 py-2 font-mono" placeholder="PUBG ID">
-                </div>
-              </div>
-            `).join('')}
-          </div>
-
-          <button type="submit" class="btn-accent px-6 py-2.5 rounded-xl">Kadro ID Bilgilerini Kaydet</button>
-        </form>
+            `;
+          }).join('');
+        })()}
       </div>
 
       <!-- Katıldığınız / Başvurduğunuz Turnuvalar -->
