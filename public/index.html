@@ -1661,7 +1661,7 @@ function renderHomePage(el) {
             <button onclick="navigate('organizer')" class="btn-accent px-4 py-2 rounded-xl text-xs">+ Turnuva Oluştur</button>
           ` : ''}
         </div>
-        ${renderTournamentGrid(appData.tournaments.filter(t => t.published !== false && t.status !== 'completed'))}
+        ${renderTournamentGrid(appData.tournaments.filter(t => t.status !== 'completed'))}
       </section>
 
       <!-- 3. TAKIM SIRALAMASI -->
@@ -1902,8 +1902,8 @@ async function unbanFromForum(username) {
    10. TOURNAMENTS & TOURNAMENT CENTER (Slots 3-25, Conditional Room, Chat Lock)
    ============================================================================ */
 function renderTournamentsPage(el) {
-  const active = appData.tournaments.filter(t => t.published !== false && t.status !== 'completed');
-  const finished = appData.tournaments.filter(t => t.published !== false && t.status === 'completed');
+  const active = appData.tournaments.filter(t => t.status !== 'completed');
+  const finished = appData.tournaments.filter(t => t.status === 'completed');
   el.innerHTML = `
     <div class="animate-page space-y-8">
       <div>
@@ -1939,7 +1939,10 @@ function renderTournamentGrid(list) {
           <article class="theme-card theme-card-hover rounded-2xl overflow-hidden flex flex-col justify-between">
             <div class="p-5 border-b" style="border-color: var(--border); background: linear-gradient(135deg, var(--accent-soft), transparent);">
               <div class="flex items-center justify-between mb-3">
-                <span class="px-2.5 py-1 rounded-md text-[11px] font-extrabold accent-bg-soft">${statusLabel}</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="px-2.5 py-1 rounded-md text-[11px] font-extrabold accent-bg-soft">${statusLabel}</span>
+                  ${tour.isStreamed ? `<span class="px-2 py-1 rounded-md text-[11px] font-extrabold bg-rose-500/20 text-rose-400">🔴 YAYIN</span>` : ''}
+                </div>
                 <span class="text-xs font-bold muted-text" title="Maç haritaları">${escapeHtml(tour.mode || 'SQUAD')} · ${escapeHtml(mapInitials(tour))}</span>
               </div>
               <h3 class="text-lg font-black">${escapeHtml(tour.title)}</h3>
@@ -1977,11 +1980,6 @@ function renderTournamentCenterPage(el) {
 
   const u = getCurrentUser();
   const isOrg = !!(u && (u.username === tour.creator || u.isAdmin || session.adminUnlocked));
-  // Taslak (yayınsız) turnuva sadece organizatöre/admine görünür
-  if (tour.published === false && !isOrg) {
-    el.innerHTML = `<div class="theme-card rounded-2xl p-8 text-center"><p class="muted-text mb-4">Turnuva bulunamadı.</p><button onclick="navigate('tournaments')" class="btn-ghost px-4 py-2 rounded-xl text-xs">Geri Dön</button></div>`;
-    return;
-  }
   const myTeam = u ? getUserTeam(u.username) : null;
   const isJoined = !!(myTeam && (tour.joinedTeams || []).includes(myTeam.id));
   const isPending = !!(myTeam && (tour.pendingTeams || []).includes(myTeam.id));
@@ -2052,6 +2050,7 @@ function renderTournamentCenterPage(el) {
             </div>
             <div class="theme-card rounded-2xl p-5 space-y-2.5 text-xs">
               <h3 class="font-extrabold text-sm mb-2">Turnuva Özeti</h3>
+              ${tour.isStreamed ? `<div class="theme-elevated rounded-xl p-3 flex items-center justify-between"><span class="text-rose-400 font-bold">🔴 Canlı Yayın</span>${tour.streamUrl ? `<a href="${escapeAttr(tour.streamUrl)}" target="_blank" rel="noopener noreferrer" class="btn-accent px-3 py-1 rounded-lg font-bold">İzle ↗</a>` : `<strong>Var</strong>`}</div>` : ''}
               <div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Toplam Maç</span><strong>${Number(tour.matches || 4)} Maç</strong></div>
               <div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Aktif Slot Aralığı</span><strong>Slot 3 – Slot 25</strong></div>
               <div class="theme-elevated rounded-xl p-3 flex justify-between"><span class="muted-text">Onaylı Takım</span><strong>${approvedTeams.length} / 23</strong></div>
@@ -2347,12 +2346,16 @@ function renderOrganizerPage(el) {
                 <option value="SQUAD">Takımlı (SQUAD)</option>
               </select>
             </div>
-            <div><label class="block font-bold muted-text mb-1">Yayın Durumu</label>
-              <select name="published" class="theme-input w-full rounded-xl px-3.5 py-2.5">
-                <option value="published">Yayında (Herkese Açık)</option>
-                <option value="draft">Taslak (Gizli — sadece sen görürsün)</option>
+            <div><label class="block font-bold muted-text mb-1">Canlı Yayın</label>
+              <select name="isStreamed" class="theme-input w-full rounded-xl px-3.5 py-2.5">
+                <option value="no">Yayınsız</option>
+                <option value="yes">Canlı Yayınlı</option>
               </select>
             </div>
+          </div>
+          <div>
+            <label class="block font-bold muted-text mb-1">Canlı Yayın Linki (opsiyonel)</label>
+            <input name="streamUrl" maxlength="200" class="theme-input w-full rounded-xl px-3.5 py-2.5" placeholder="https://youtube.com/... veya https://twitch.tv/... (yayınlıysa)">
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div><label class="block font-bold muted-text mb-1">Maç Sayısı</label><input name="matches" type="number" min="1" max="12" value="4" oninput="renderMatchMapInputs()" class="theme-input w-full rounded-xl px-3.5 py-2.5" required></div>
@@ -2602,7 +2605,9 @@ async function createNewTournament(e) {
   const matchCount = Math.max(1, Math.min(12, Number(fd.get('matches') || 4)));
   const maps = {};
   for (let i = 1; i <= matchCount; i++) maps[i] = String(fd.get(`map_${i}`) || 'Erangel');
-  const published = fd.get('published') !== 'draft';
+  const isStreamed = fd.get('isStreamed') === 'yes';
+  let streamUrl = String(fd.get('streamUrl') || '').trim().slice(0, 200);
+  if (streamUrl && !/^https?:\/\//i.test(streamUrl)) streamUrl = 'https://' + streamUrl;
   const tr = {
     id: 'tr_' + Date.now(),
     title: String(fd.get('title') || '').trim().slice(0, 80),
@@ -2623,13 +2628,14 @@ async function createNewTournament(e) {
     joinedTeams: [],
     matchScores: {},
     maps,
-    published,
+    isStreamed,
+    streamUrl,
     chatLocked: false,
     status: 'open'
   };
   selectedOrganizerTourId = tr.id;
   await saveState(draft => { draft.tournaments.unshift(tr); });
-  showToast(published ? 'Turnuva yayınlandı!' : 'Turnuva taslak olarak kaydedildi (gizli).');
+  showToast('Turnuva oluşturuldu!');
 }
 
 async function updateOrganizerTourDetails(e, tourId) {
