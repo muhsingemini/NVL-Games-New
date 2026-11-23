@@ -6,6 +6,7 @@
 <title>NVL Games — PUBG Mobile Turnuva Platformu</title>
 <link id="dynamicFavicon" rel="icon" type="image/svg+xml" href="">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -501,13 +502,64 @@ function stateSignature(s) {
   } catch { return Math.random().toString(); }
 }
 
-// Gelen durumu uygula: SADECE icerik gercekten degistiyse yeniden ciz.
-// Bu, her 2 saniyede bir gereksiz yeniden cizimi (ekranin titremesini) onler.
+// --- Istemci tarafi birlestirme (sunucudakiyle ayni mantik) ---
+// 2. arguman (incoming) ayni anahtarda kazanir; 1. argumandaki (existing) ozel
+// kayitlar korunur -> kimsenin ekledigi kaybolmaz.
+function _mergeByKey(existing, incoming, keyFn) {
+  const map = new Map();
+  (Array.isArray(incoming) ? incoming : []).forEach(it => { const k = keyFn(it); if (k != null && k !== '') map.set(String(k), it); });
+  (Array.isArray(existing) ? existing : []).forEach(it => { const k = keyFn(it); if (k != null && k !== '' && !map.has(String(k))) map.set(String(k), it); });
+  return Array.from(map.values());
+}
+function _mergeMapObj(a, b) { const out = Object.assign({}, a || {}); const bb = b || {}; Object.keys(bb).forEach(k => out[k] = bb[k]); return out; }
+function _mergeChatMap(a, b) {
+  const out = Object.assign({}, a || {}); const inc = b || {};
+  Object.keys(inc).forEach(key => { out[key] = _mergeByKey(out[key], inc[key], m => (m && m.id != null) ? m.id : JSON.stringify(m)); });
+  return out;
+}
+function _mergeTournaments(existing, incoming) {
+  const exMap = new Map();
+  (Array.isArray(existing) ? existing : []).forEach(t => { if (t && t.id) exMap.set(String(t.id), t); });
+  const result = []; const seen = new Set();
+  (Array.isArray(incoming) ? incoming : []).forEach(t => {
+    if (!t || !t.id) return; seen.add(String(t.id));
+    const prev = exMap.get(String(t.id));
+    if (!prev) { result.push(t); return; }
+    const m = Object.assign({}, prev, t);
+    m.rosters = _mergeMapObj(prev.rosters, t.rosters);
+    m.matchScores = _mergeMapObj(prev.matchScores, t.matchScores);
+    result.push(m);
+  });
+  (Array.isArray(existing) ? existing : []).forEach(t => { if (t && t.id && !seen.has(String(t.id))) result.push(t); });
+  return result;
+}
+function mergeStateClient(existing, incoming) {
+  if (!existing || typeof existing !== 'object') return incoming;
+  if (!incoming || typeof incoming !== 'object') return existing;
+  const merged = Object.assign({}, existing, incoming);
+  merged.users = _mergeByKey(existing.users, incoming.users, u => u && u.username);
+  merged.teams = _mergeByKey(existing.teams, incoming.teams, x => x && x.id);
+  merged.tournaments = _mergeTournaments(existing.tournaments, incoming.tournaments);
+  merged.announcements = _mergeByKey(existing.announcements, incoming.announcements, x => x && x.id);
+  merged.payments = _mergeByKey(existing.payments, incoming.payments, x => x && x.id);
+  merged.forumMessages = _mergeByKey(existing.forumMessages, incoming.forumMessages, m => (m && m.id != null) ? m.id : JSON.stringify(m));
+  merged.dmMessages = _mergeByKey(existing.dmMessages, incoming.dmMessages, m => (m && m.id != null) ? m.id : JSON.stringify(m));
+  merged.tournamentChats = _mergeChatMap(existing.tournamentChats, incoming.tournamentChats);
+  merged.teamChats = _mergeChatMap(existing.teamChats, incoming.teamChats);
+  return merged;
+}
+
+// Gelen durumu uygula: yerelle birlestir, SADECE icerik degistiyse yeniden ciz (titremesiz).
 function applyIncomingState(rawState, persist) {
   try {
     const incoming = normalizeState(rawState);
-    if (stateSignature(incoming) === stateSignature(appData)) return false;
-    appData = incoming;
+    // Taze yerel degisiklik varsa (son ~3 sn) benim degisikligim oncelikli; yoksa gelen.
+    const recentlyLocal = (Date.now() - lastLocalSaveAt) < 3000;
+    const merged = normalizeState(
+      recentlyLocal ? mergeStateClient(incoming, appData) : mergeStateClient(appData, incoming)
+    );
+    if (stateSignature(merged) === stateSignature(appData)) return false;
+    appData = merged;
     if (persist) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch {}
     }
@@ -545,6 +597,74 @@ function persistSession() {
 let lastLocalSaveAt = 0;
 let lastRenderUserKey = null;
 
+/* ============================================================================
+   SUPABASE REALTIME — anlik senkron (WebSocket). Yoklama (polling) yerine push.
+   ============================================================================ */
+const SUPABASE_URL = 'https://oxdkoifmfernltttrsov.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_JHb52FGIiLstGfNJHwdbRw_QnZa1D0r';
+let supaClient = null;
+let realtimeChannel = null;
+let realtimeOn = false;
+
+try {
+  if (window.supabase && typeof window.supabase.createClient === 'function' && SUPABASE_URL && SUPABASE_KEY) {
+    supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      realtime: { params: { eventsPerSecond: 20 } }
+    });
+    realtimeChannel = supaClient.channel('nvl_live', { config: { broadcast: { self: false } } });
+    realtimeChannel.on('broadcast', { event: 'state' }, (msg) => {
+      if (msg && msg.payload && msg.payload.state) {
+        applyIncomingState(restoreImagesFromLocal(msg.payload.state), true);
+      }
+    });
+    realtimeChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        realtimeOn = true;
+        // Yeniden baglaninca Turso'dan bir kez tazele (kacan mesaj varsa)
+        pullRemoteState();
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        realtimeOn = false;
+      }
+    });
+  }
+} catch (e) { console.error('Realtime init hatasi:', e); }
+
+// Buyuk resim (data: URL) alanlarini broadcast'ten cikar -> mesaj kucuk/hizli kalir.
+function stripImagesForBroadcast(state) {
+  const s = JSON.parse(JSON.stringify(state));
+  const strip = v => (typeof v === 'string' && v.indexOf('data:') === 0) ? '__KEEP__' : v;
+  s.siteLogoUrl = strip(s.siteLogoUrl);
+  s.siteIconUrl = strip(s.siteIconUrl);
+  (s.users || []).forEach(u => { u.avatarUrl = strip(u.avatarUrl); u.bannerUrl = strip(u.bannerUrl); });
+  (s.teams || []).forEach(tm => { tm.logoUrl = strip(tm.logoUrl); });
+  return s;
+}
+
+// Alicida '__KEEP__' olan resim alanlarini yereldeki mevcut degerle doldur.
+function restoreImagesFromLocal(incoming) {
+  const keep = (val, localVal) => (val === '__KEEP__') ? (localVal || '') : val;
+  incoming.siteLogoUrl = keep(incoming.siteLogoUrl, appData.siteLogoUrl);
+  incoming.siteIconUrl = keep(incoming.siteIconUrl, appData.siteIconUrl);
+  (incoming.users || []).forEach(u => {
+    const local = (appData.users || []).find(x => x.username === u.username) || {};
+    u.avatarUrl = keep(u.avatarUrl, local.avatarUrl);
+    u.bannerUrl = keep(u.bannerUrl, local.bannerUrl);
+  });
+  (incoming.teams || []).forEach(tm => {
+    const local = (appData.teams || []).find(x => x.id === tm.id) || {};
+    tm.logoUrl = keep(tm.logoUrl, local.logoUrl);
+  });
+  return incoming;
+}
+
+// Durumu tum istemcilere ANINDA ilet (WebSocket broadcast)
+function broadcastState() {
+  if (!realtimeChannel || !realtimeOn) return;
+  try {
+    realtimeChannel.send({ type: 'broadcast', event: 'state', payload: { state: stripImagesForBroadcast(appData) } });
+  } catch (e) {}
+}
+
 async function saveState(mutatorFn) {
   try {
     const draft = JSON.parse(JSON.stringify(appData));
@@ -557,6 +677,7 @@ async function saveState(mutatorFn) {
       try { syncChannel.postMessage({ type: 'STATE_SYNC', state: appData }); } catch {}
     }
     renderSmart();
+    broadcastState(); // diger kullanicilara ANINDA ilet (WebSocket)
 
     try {
       await fetch('/api/state', {
@@ -586,9 +707,16 @@ async function pullRemoteState() {
   } catch {}
 }
 
+// Realtime ACIKKEN surekli yoklama yapilmaz; sadece ~15 sn'de bir guvenlik taramasi
+// (kacan/boyutu buyuk bir mesaj olursa kendini toparlar). Realtime kapaliysa (CDN
+// engelliyse) 1.5 sn'lik yedek yoklamaya duser.
+let pollTick = 0;
 setInterval(() => {
-  if (!document.hidden) pullRemoteState();
-}, 1200);
+  if (document.hidden) return;
+  pollTick++;
+  if (realtimeOn && (pollTick % 10 !== 0)) return;
+  pullRemoteState();
+}, 1500);
 
 /* ============================================================================
    3. DEDICATED SEPARATE #admin ROUTE CHECK
