@@ -1519,10 +1519,12 @@ async function sendDirectMessage(e) {
     return;
   }
   const inp = document.getElementById('dmMsgInput');
-  const txt = String(inp?.value || '').trim();
+  const txt = String(inp?.value || '').trim().slice(0, 1000);
   if (!txt) return;
   inp.value = '';
   await saveState(draft => {
+    draft.dmMessages = Array.isArray(draft.dmMessages) ? draft.dmMessages : [];
+    if (draft.dmMessages.length > 1000) draft.dmMessages = draft.dmMessages.slice(-1000);
     draft.dmMessages.push({
       id: 'dm_' + Date.now(),
       from: u.username,
@@ -1659,7 +1661,7 @@ function renderHomePage(el) {
             <button onclick="navigate('organizer')" class="btn-accent px-4 py-2 rounded-xl text-xs">+ Turnuva Oluştur</button>
           ` : ''}
         </div>
-        ${renderTournamentGrid(appData.tournaments)}
+        ${renderTournamentGrid(appData.tournaments.filter(t => t.published !== false && t.status !== 'completed'))}
       </section>
 
       <!-- 3. TAKIM SIRALAMASI -->
@@ -1846,7 +1848,7 @@ async function sendForumChatMessage(e) {
     return;
   }
   const inp = document.getElementById('forumLiveInput');
-  const txt = String(inp?.value || '').trim();
+  const txt = String(inp?.value || '').trim().slice(0, 500);
   if (!txt) return;
   inp.value = '';
 
@@ -1900,8 +1902,8 @@ async function unbanFromForum(username) {
    10. TOURNAMENTS & TOURNAMENT CENTER (Slots 3-25, Conditional Room, Chat Lock)
    ============================================================================ */
 function renderTournamentsPage(el) {
-  const active = appData.tournaments.filter(t => t.status !== 'completed');
-  const finished = appData.tournaments.filter(t => t.status === 'completed');
+  const active = appData.tournaments.filter(t => t.published !== false && t.status !== 'completed');
+  const finished = appData.tournaments.filter(t => t.published !== false && t.status === 'completed');
   el.innerHTML = `
     <div class="animate-page space-y-8">
       <div>
@@ -1938,7 +1940,7 @@ function renderTournamentGrid(list) {
             <div class="p-5 border-b" style="border-color: var(--border); background: linear-gradient(135deg, var(--accent-soft), transparent);">
               <div class="flex items-center justify-between mb-3">
                 <span class="px-2.5 py-1 rounded-md text-[11px] font-extrabold accent-bg-soft">${statusLabel}</span>
-                <span class="text-xs font-bold muted-text">${escapeHtml(tour.mode || 'SQUAD')} · ${escapeHtml(tour.map || 'Erangel')}</span>
+                <span class="text-xs font-bold muted-text" title="Maç haritaları">${escapeHtml(tour.mode || 'SQUAD')} · ${escapeHtml(mapInitials(tour))}</span>
               </div>
               <h3 class="text-lg font-black">${escapeHtml(tour.title)}</h3>
               <div class="text-xs muted-text mt-1">
@@ -1975,6 +1977,11 @@ function renderTournamentCenterPage(el) {
 
   const u = getCurrentUser();
   const isOrg = !!(u && (u.username === tour.creator || u.isAdmin || session.adminUnlocked));
+  // Taslak (yayınsız) turnuva sadece organizatöre/admine görünür
+  if (tour.published === false && !isOrg) {
+    el.innerHTML = `<div class="theme-card rounded-2xl p-8 text-center"><p class="muted-text mb-4">Turnuva bulunamadı.</p><button onclick="navigate('tournaments')" class="btn-ghost px-4 py-2 rounded-xl text-xs">Geri Dön</button></div>`;
+    return;
+  }
   const myTeam = u ? getUserTeam(u.username) : null;
   const isJoined = !!(myTeam && (tour.joinedTeams || []).includes(myTeam.id));
   const isPending = !!(myTeam && (tour.pendingTeams || []).includes(myTeam.id));
@@ -2004,7 +2011,7 @@ function renderTournamentCenterPage(el) {
       </div>
 
       <div class="theme-card rounded-2xl p-6" style="background: linear-gradient(135deg, var(--accent-soft), var(--bg-card));">
-        <div class="text-xs font-extrabold uppercase tracking-wider accent-text mb-1">${escapeHtml(tour.mode || 'SQUAD')} · ${escapeHtml(tour.map || 'Erangel')}</div>
+        <div class="text-xs font-extrabold uppercase tracking-wider accent-text mb-1">${escapeHtml(tour.mode || 'SQUAD')} · ${escapeHtml(mapInitials(tour))}</div>
         <h1 class="text-2xl sm:text-3xl font-black">${escapeHtml(tour.title)}</h1>
         <div class="flex flex-wrap items-center gap-4 text-xs muted-text mt-3">
           <span>📅 ${escapeHtml(tour.date)} · ${escapeHtml(tour.time)}</span>
@@ -2284,12 +2291,13 @@ async function sendTournamentChat(e, tourId) {
   if (tour.chatLocked && !isOrg) return;
 
   const inp = document.getElementById('tourChatMsgInp');
-  const txt = String(inp?.value || '').trim();
+  const txt = String(inp?.value || '').trim().slice(0, 500);
   if (!txt) return;
   inp.value = '';
 
   await saveState(draft => {
     draft.tournamentChats[tourId] = draft.tournamentChats[tourId] || [];
+    if (draft.tournamentChats[tourId].length > 300) draft.tournamentChats[tourId] = draft.tournamentChats[tourId].slice(-300);
     draft.tournamentChats[tourId].push({
       author: u.username,
       text: txt,
@@ -2339,19 +2347,21 @@ function renderOrganizerPage(el) {
                 <option value="SQUAD">Takımlı (SQUAD)</option>
               </select>
             </div>
-            <div><label class="block font-bold muted-text mb-1">Varsayılan Harita</label>
-              <select name="map" class="theme-input w-full rounded-xl px-3.5 py-2.5">
-                <option value="Erangel">Erangel</option>
-                <option value="Miramar">Miramar</option>
-                <option value="Rondo">Rondo</option>
+            <div><label class="block font-bold muted-text mb-1">Yayın Durumu</label>
+              <select name="published" class="theme-input w-full rounded-xl px-3.5 py-2.5">
+                <option value="published">Yayında (Herkese Açık)</option>
+                <option value="draft">Taslak (Gizli — sadece sen görürsün)</option>
               </select>
-              <p class="text-[10px] muted-text mt-1">Her maça ayrı harita turnuva açıldıktan sonra aşağıdan seçilir.</p>
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div><label class="block font-bold muted-text mb-1">Maç Sayısı</label><input name="matches" type="number" min="1" max="12" value="4" class="theme-input w-full rounded-xl px-3.5 py-2.5" required></div>
+            <div><label class="block font-bold muted-text mb-1">Maç Sayısı</label><input name="matches" type="number" min="1" max="12" value="4" oninput="renderMatchMapInputs()" class="theme-input w-full rounded-xl px-3.5 py-2.5" required></div>
             <div><label class="block font-bold muted-text mb-1">Katılım Ücreti (N)</label><input name="entryFee" type="number" min="0" value="0" class="theme-input w-full rounded-xl px-3.5 py-2.5" required></div>
-            <div><label class="block font-bold muted-text mb-1">Ödül Havuzu (N)</label><input name="prizePool" class="theme-input w-full rounded-xl px-3.5 py-2.5" required placeholder="Örn: 1.000 N"></div>
+            <div><label class="block font-bold muted-text mb-1">Ödül Havuzu (N)</label><input name="prizePool" maxlength="40" class="theme-input w-full rounded-xl px-3.5 py-2.5" required placeholder="Örn: 1.000 N"></div>
+          </div>
+          <div>
+            <label class="block font-bold muted-text mb-1">Maç Haritaları (her maç için ayrı seç)</label>
+            <div id="matchMapInputs" class="grid grid-cols-2 sm:grid-cols-4 gap-2">${matchMapInputsHtml(4)}</div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label class="block font-bold muted-text mb-1">Tarih</label><input name="date" type="date" class="theme-input w-full rounded-xl px-3.5 py-2.5" required></div>
@@ -2555,42 +2565,71 @@ function renderOrganizerPage(el) {
   `;
 }
 
+// Harita listesi ve maç başına harita seçici HTML'i
+const MAP_LIST = ['Erangel', 'Miramar', 'Rondo'];
+function matchMapInputsHtml(n) {
+  n = Math.max(1, Math.min(12, Number(n) || 1));
+  let html = '';
+  for (let i = 1; i <= n; i++) {
+    html += `<div><label class="block text-[10px] muted-text mb-1">Maç ${i}</label><select name="map_${i}" class="theme-input w-full rounded-lg px-2.5 py-1.5">${MAP_LIST.map(mp => `<option value="${mp}">${mp}</option>`).join('')}</select></div>`;
+  }
+  return html;
+}
+function renderMatchMapInputs() {
+  const box = document.getElementById('matchMapInputs');
+  const cnt = document.querySelector('[name="matches"]');
+  if (!box || !cnt) return;
+  box.innerHTML = matchMapInputsHtml(cnt.value);
+}
+// Turnuva haritalarini baş harfleriyle göster: E.M.E.R
+function mapInitials(tour) {
+  const n = Math.max(1, Number(tour.matches || 1));
+  const maps = tour.maps || {};
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    const m = maps[i] || tour.map || '';
+    out.push(m ? m.charAt(0).toUpperCase() : '?');
+  }
+  return out.join('.');
+}
+
 async function createNewTournament(e) {
   e.preventDefault();
   const u = getCurrentUser();
   if (!u) return;
   const fd = new FormData(e.target);
   const isRoomCoded = fd.get('isRoomCoded') === 'on';
+  const matchCount = Math.max(1, Math.min(12, Number(fd.get('matches') || 4)));
+  const maps = {};
+  for (let i = 1; i <= matchCount; i++) maps[i] = String(fd.get(`map_${i}`) || 'Erangel');
+  const published = fd.get('published') !== 'draft';
   const tr = {
     id: 'tr_' + Date.now(),
-    title: String(fd.get('title') || '').trim(),
-    mode: String(fd.get('mode') || 'SQUAD'),
-    map: String(fd.get('map') || 'Erangel'),
+    title: String(fd.get('title') || '').trim().slice(0, 80),
+    mode: 'SQUAD',
+    map: maps[1] || 'Erangel',
     creator: u.username,
-    matches: Number(fd.get('matches') || 4),
-    entryFee: Number(fd.get('entryFee') || 0),
-    prizePool: String(fd.get('prizePool') || '0 N').trim(),
+    matches: matchCount,
+    entryFee: Math.max(0, Number(fd.get('entryFee') || 0)),
+    prizePool: String(fd.get('prizePool') || '0 N').trim().slice(0, 40),
     date: String(fd.get('date') || ''),
     time: String(fd.get('time') || ''),
     isRoomCoded,
-    roomCode: isRoomCoded ? String(fd.get('roomCode') || '').trim() : '',
-    roomPassword: isRoomCoded ? String(fd.get('roomPassword') || '').trim() : '',
-    description: String(fd.get('description') || '').trim(),
-    rules: String(fd.get('rules') || '').trim(),
+    roomCode: isRoomCoded ? String(fd.get('roomCode') || '').trim().slice(0, 40) : '',
+    roomPassword: isRoomCoded ? String(fd.get('roomPassword') || '').trim().slice(0, 40) : '',
+    description: String(fd.get('description') || '').trim().slice(0, 1000),
+    rules: String(fd.get('rules') || '').trim().slice(0, 1000),
     pendingTeams: [],
     joinedTeams: [],
     matchScores: {},
-    maps: {},
+    maps,
+    published,
     chatLocked: false,
     status: 'open'
   };
-  // Her maca varsayilan haritayi ata (sonradan tek tek degistirilebilir)
-  const matchCount = Number(fd.get('matches') || 4);
-  const defaultMap = String(fd.get('map') || 'Erangel');
-  for (let i = 1; i <= matchCount; i++) tr.maps[i] = defaultMap;
   selectedOrganizerTourId = tr.id;
   await saveState(draft => { draft.tournaments.unshift(tr); });
-  showToast('Turnuva başarıyla yayınlandı!');
+  showToast(published ? 'Turnuva yayınlandı!' : 'Turnuva taslak olarak kaydedildi (gizli).');
 }
 
 async function updateOrganizerTourDetails(e, tourId) {
@@ -3190,11 +3229,12 @@ async function sendTeamChatMsg(e, teamId) {
   e.preventDefault();
   const u = getCurrentUser();
   const inp = document.getElementById('teamMsgInp');
-  const txt = String(inp?.value || '').trim();
+  const txt = String(inp?.value || '').trim().slice(0, 500);
   if (!u || !txt) return;
   inp.value = '';
   await saveState(draft => {
     draft.teamChats[teamId] = draft.teamChats[teamId] || [];
+    if (draft.teamChats[teamId].length > 300) draft.teamChats[teamId] = draft.teamChats[teamId].slice(-300);
     draft.teamChats[teamId].push({
       author: u.username,
       text: txt,
@@ -4237,11 +4277,15 @@ function openAuthModal(mode = 'login') {
 async function handleRegister(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const username = String(fd.get('username') || '').trim().replace(/^@+/, '').toLowerCase();
-  const email = String(fd.get('email') || '').trim().toLowerCase();
-  const password = String(fd.get('password') || '');
+  const username = String(fd.get('username') || '').trim().replace(/^@+/, '').toLowerCase().slice(0, 20);
+  const email = String(fd.get('email') || '').trim().toLowerCase().slice(0, 60);
+  const password = String(fd.get('password') || '').slice(0, 64);
   if (!username || username === ADMIN_LOGIN_ID) return;
-  if (appData.users.some(u => u.username === username || u.email === email)) {
+  if (username.length < 2 || password.length < 3) {
+    showToast('Kullanıcı adı en az 2, şifre en az 3 karakter olmalı.');
+    return;
+  }
+  if (appData.users.some(u => u.username === username || (email && u.email === email))) {
     showToast('Bu kullanıcı adı veya e-posta zaten kayıtlı.');
     return;
   }
@@ -4252,8 +4296,8 @@ async function handleRegister(e) {
     username,
     email,
     password,
-    pubgName: String(fd.get('pubgName') || '').trim(),
-    pubgId: String(fd.get('pubgId') || '').trim(),
+    pubgName: String(fd.get('pubgName') || '').trim().slice(0, 30),
+    pubgId: String(fd.get('pubgId') || '').trim().slice(0, 20),
     role: 'Entry Fragger',
     bio: '',
     avatarUrl: '',
