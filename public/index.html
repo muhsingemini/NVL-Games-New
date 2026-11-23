@@ -569,8 +569,8 @@ async function saveState(mutatorFn) {
 }
 
 async function pullRemoteState() {
-  // Taze bir yerel degisiklik varsa (son ~4 sn), sunucudan cekip uzerine yazma.
-  if (Date.now() - lastLocalSaveAt < 4000) return;
+  // Taze bir yerel degisiklik varsa (son ~3 sn), sunucudan cekip uzerine yazma.
+  if (Date.now() - lastLocalSaveAt < 3000) return;
   try {
     const res = await fetch('/api/state', { cache: 'no-store' });
     if (!res.ok) return;
@@ -583,7 +583,7 @@ async function pullRemoteState() {
 
 setInterval(() => {
   if (!document.hidden) pullRemoteState();
-}, 1500);
+}, 1200);
 
 /* ============================================================================
    3. DEDICATED SEPARATE #admin ROUTE CHECK
@@ -1046,6 +1046,10 @@ function rerenderMainContent() {
     };
   }
   renderCurrentView(mainEl);
+  // Senkron guncellemede sayfa giris animasyonunu OYNATMA (ekran kaymasin/titremesin).
+  try {
+    mainEl.querySelectorAll('.animate-page, .animate-chat-switch').forEach(eln => { eln.style.animation = 'none'; });
+  } catch {}
   if (isDmPanelOpen) renderDmDrawerContent();
   if (isDrawerOpen) renderDrawerContent();
   restoreFocusSnapshot(focusSnap);

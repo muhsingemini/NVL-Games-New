@@ -268,9 +268,16 @@ module.exports = async function (req, res) {
         args: [JSON.stringify(finalState), finalState.updatedAt]
       });
 
-      // 2) Okunabilir tablolari guncelle (bu hata verse bile ana kayit bozulmaz)
+      // 2) Okunabilir tablolari SADECE ilgili veri degistiyse yenile.
+      // Forum/sohbet/DM yazimlari bu tablolari degistirmez -> bu islemi atlayinca
+      // POST cok daha hizli olur (anlik senkron).
       try {
-        await rebuildMirrors(finalState);
+        const mirrorSig = s => JSON.stringify([
+          s && s.users, s && s.teams, s && s.tournaments, s && s.payments
+        ]);
+        if (!existing || mirrorSig(existing) !== mirrorSig(finalState)) {
+          await rebuildMirrors(finalState);
+        }
       } catch (mirrorErr) {
         console.error('Ayna tablo hatasi:', mirrorErr);
       }
