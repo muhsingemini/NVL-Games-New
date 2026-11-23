@@ -506,7 +506,7 @@ function applyIncomingState(rawState, persist) {
     if (persist) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch {}
     }
-    renderApp(true);
+    renderSmart();
     return true;
   } catch { return false; }
 }
@@ -538,6 +538,7 @@ function persistSession() {
 // (henuz bizim degisikligimizi icermeyen) eski durumun bizim yeni halimizin
 // uzerine yazip ekrani "geri almasini" (titreme/mesaj kaybolmasini) onler.
 let lastLocalSaveAt = 0;
+let lastRenderUserKey = null;
 
 async function saveState(mutatorFn) {
   try {
@@ -550,7 +551,7 @@ async function saveState(mutatorFn) {
     if (syncChannel) {
       try { syncChannel.postMessage({ type: 'STATE_SYNC', state: appData }); } catch {}
     }
-    renderApp(true);
+    renderSmart();
 
     try {
       await fetch('/api/state', {
@@ -582,7 +583,7 @@ async function pullRemoteState() {
 
 setInterval(() => {
   if (!document.hidden) pullRemoteState();
-}, 2000);
+}, 1500);
 
 /* ============================================================================
    3. DEDICATED SEPARATE #admin ROUTE CHECK
@@ -1006,6 +1007,17 @@ function renderApp(preserveFocus = true) {
   `;
 
   const mainEl = document.getElementById('mainBody');
+  renderCurrentView(mainEl);
+
+  if (isDmPanelOpen) renderDmDrawerContent();
+  if (isDrawerOpen) renderDrawerContent();
+  restoreFocusSnapshot(focusSnap);
+  lastRenderUserKey = getCurrentUser() ? getCurrentUser().username : '__none__';
+}
+
+// Sadece icerik alanini (mainBody) ilgili sayfaya gore doldurur.
+function renderCurrentView(mainEl) {
+  if (!mainEl) return;
   if (activeView === 'home') renderHomePage(mainEl);
   else if (activeView === 'tournaments') renderTournamentsPage(mainEl);
   else if (activeView === 'tournament_center') renderTournamentCenterPage(mainEl);
@@ -1017,10 +1029,39 @@ function renderApp(preserveFocus = true) {
   else if (activeView === 'settings') renderSettingsPage(mainEl);
   else if (activeView === 'messages') renderMessagesPage(mainEl);
   else renderHomePage(mainEl);
+}
 
+// Yalnizca icerik alanini yeniler (navbar/footer sabit kalir) -> titreme olmaz.
+function rerenderMainContent() {
+  const mainEl = document.getElementById('mainBody');
+  if (!mainEl) { renderApp(true); return; }
+  let focusSnap = null;
+  if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    focusSnap = {
+      id: document.activeElement.id,
+      name: document.activeElement.name,
+      val: document.activeElement.value,
+      start: document.activeElement.selectionStart,
+      end: document.activeElement.selectionEnd
+    };
+  }
+  renderCurrentView(mainEl);
   if (isDmPanelOpen) renderDmDrawerContent();
   if (isDrawerOpen) renderDrawerContent();
   restoreFocusSnapshot(focusSnap);
+}
+
+// Akilli yeniden cizim: giris durumu/ozel sayfa degismediyse sadece icerik alanini
+// yeniler (hizli + titremesiz); aksi halde tam sayfayi cizer.
+function renderSmart() {
+  const u = getCurrentUser();
+  const key = u ? u.username : '__none__';
+  const root = document.getElementById('appRoot');
+  if (!root || activeView === 'obs' || activeView === 'admin' || key !== lastRenderUserKey) {
+    renderApp(true);
+    return;
+  }
+  rerenderMainContent();
 }
 
 function restoreFocusSnapshot(focusSnap) {
@@ -1028,8 +1069,14 @@ function restoreFocusSnapshot(focusSnap) {
   try {
     const target = focusSnap.id ? document.getElementById(focusSnap.id) : document.querySelector(`[name="${focusSnap.name}"]`);
     if (target && !target.disabled) {
+      // Yazilmakta olan metni koru (senkron sirasinda silinmesin)
+      if (typeof focusSnap.val === 'string' && 'value' in target) {
+        target.value = focusSnap.val;
+      }
       target.focus();
-      if (typeof focusSnap.start === 'number') target.setSelectionRange(focusSnap.start, focusSnap.end);
+      if (typeof focusSnap.start === 'number') {
+        try { target.setSelectionRange(focusSnap.start, focusSnap.end); } catch {}
+      }
     }
   } catch {}
 }
@@ -2330,6 +2377,12 @@ async function requestSubstitution(e, tourId, teamId) {
     return;
   }
   const outIdx = Number(out), inIdx = Number(inp);
+  // Secilen yedegin ID'si bos ise talep gonderme (bos yedekle organizatoru mesgul etme)
+  const rosterCheck = getTournamentRoster(appData.tournaments.find(t => t.id === tourId) || {}, teamId);
+  if (!rosterCheck.sub[inIdx] || String(rosterCheck.sub[inIdx].id || '').trim() === '') {
+    showToast('Sadece ID bilgisi girilmiş yedek oyuncu seçilebilir.');
+    return;
+  }
   await saveState(draft => {
     const tr = draft.tournaments.find(t => t.id === tourId);
     if (!tr) return;
@@ -2548,8 +2601,11 @@ function renderTeamPage(el) {
                   const subsList = roster.substitutions;
                   const usedMains = subsList.map(s => s.outMain);
                   const usedSubs = subsList.map(s => s.inSub);
-                  const availMains = [0, 1, 2, 3].filter(i => !usedMains.includes(i));
-                  const availSubs = [0, 1].filter(i => !usedSubs.includes(i));
+                  const hasId = p => String((p && p.id) || '').trim() !== '';
+                  const availMains = [0, 1, 2, 3].filter(i => !usedMains.includes(i) && hasId(roster.main[i]));
+                  // Sadece ID girilmis yedekler secilebilir
+                  const availSubs = [0, 1].filter(i => !usedSubs.includes(i) && hasId(roster.sub[i]));
+                  const anySubId = [0, 1].some(i => hasId(roster.sub[i]));
                   return `
                   <div class="rounded-xl p-3 border" style="border-color: var(--border); background: var(--bg-main);">
                     <div class="font-extrabold text-xs mb-2">🔁 Yedek Değişimi (Maç Arası)</div>
@@ -2562,7 +2618,7 @@ function renderTeamPage(el) {
                       </div>
                     `).join('')}</div>` : ''}
                     ${availSubs.length === 0
-                      ? `<p class="text-[11px] muted-text">Tüm yedekler kullanıldı. Başka değişim yapılamaz.</p>`
+                      ? `<p class="text-[11px] muted-text">${anySubId ? 'Tüm yedekler kullanıldı. Başka değişim yapılamaz.' : 'ID bilgisi girilmiş yedek oyuncu yok — değişim için yedek oyuncu ID girilmeli.'}</p>`
                       : `<form onsubmit="requestSubstitution(event, '${tr.id}', '${myTeam.id}')" class="space-y-2 text-xs">
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
