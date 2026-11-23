@@ -205,6 +205,17 @@
   .animate-drawer { animation: drawerSlideIn 0.26s var(--ease-smooth); }
   .animate-id-warn { animation: pulseIdWarn 1.5s infinite; }
 
+  @keyframes blinkRed {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.6); }
+    50% { opacity: 0.35; box-shadow: 0 0 0 4px rgba(244, 63, 94, 0); }
+  }
+  @keyframes blinkGreen {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+    50% { opacity: 0.35; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+  }
+  .blink-red { animation: blinkRed 1s infinite; }
+  .blink-green { animation: blinkGreen 1s infinite; }
+
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
@@ -523,12 +534,18 @@ function persistSession() {
   try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
 }
 
+// Yerel bir degisiklik yapildiginda bu zaman guncellenir. Sunucudan gelen
+// (henuz bizim degisikligimizi icermeyen) eski durumun bizim yeni halimizin
+// uzerine yazip ekrani "geri almasini" (titreme/mesaj kaybolmasini) onler.
+let lastLocalSaveAt = 0;
+
 async function saveState(mutatorFn) {
   try {
     const draft = JSON.parse(JSON.stringify(appData));
     if (typeof mutatorFn === 'function') mutatorFn(draft);
     draft.updatedAt = Date.now();
     appData = normalizeState(draft);
+    lastLocalSaveAt = Date.now();
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch {}
     if (syncChannel) {
       try { syncChannel.postMessage({ type: 'STATE_SYNC', state: appData }); } catch {}
@@ -541,6 +558,9 @@ async function saveState(mutatorFn) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: appData })
       });
+      // POST bittikten sonra pencereyi biraz uzat ki bir sonraki pull
+      // sunucunun guncellenmis halini alsin, eskisini degil.
+      lastLocalSaveAt = Date.now();
     } catch {}
   } catch (err) {
     console.error('saveState error:', err);
@@ -548,6 +568,8 @@ async function saveState(mutatorFn) {
 }
 
 async function pullRemoteState() {
+  // Taze bir yerel degisiklik varsa (son ~4 sn), sunucudan cekip uzerine yazma.
+  if (Date.now() - lastLocalSaveAt < 4000) return;
   try {
     const res = await fetch('/api/state', { cache: 'no-store' });
     if (!res.ok) return;
@@ -762,9 +784,8 @@ function getTournamentRoster(tour, teamId) {
   return {
     main: [0, 1, 2, 3].map(i => main[i] || { nick: '', id: '' }),
     sub: [0, 1].map(i => sub[i] || { nick: '', id: '' }),
-    subOut: (typeof r.subOut === 'number') ? r.subOut : null,
-    subIn: (typeof r.subIn === 'number') ? r.subIn : null,
-    subDone: !!r.subDone
+    // Yedek degisimleri: [{ outMain, inSub, done }]
+    substitutions: Array.isArray(r.substitutions) ? r.substitutions : []
   };
 }
 
@@ -1129,14 +1150,13 @@ function renderMessagesPage(el) {
     return;
   }
   const me = u.username;
+  // Sadece yazistigimiz kisiler (bize yazan veya bizim yazdigimiz). Tum uyeler DEGIL.
   const relatedPeers = appData.dmMessages
     .filter(m => m.from === me || m.to === me)
     .map(m => (m.from === me ? m.to : m.from));
-  const otherUsers = getPublicUsers().filter(x => x.username !== me).map(x => x.username);
   const peers = [...new Set([
     ...(selectedDmPeer ? [selectedDmPeer] : []),
-    ...relatedPeers,
-    ...otherUsers
+    ...relatedPeers
   ])];
   if (!selectedDmPeer && peers.length > 0) selectedDmPeer = peers[0];
 
@@ -1158,7 +1178,7 @@ function renderMessagesPage(el) {
         <!-- Conversation list -->
         <div class="border-b sm:border-b-0 sm:border-r p-3 space-y-1.5 overflow-y-auto max-h-40 sm:max-h-[65vh]" style="border-color: var(--border); background-color: var(--bg-main);">
           ${peers.length === 0 ? `
-            <div class="text-xs muted-text p-4 text-center">Henüz konuşma yok.</div>
+            <div class="text-xs muted-text p-4 text-center">Henüz konuşma yok. Bir kullanıcının profiline girip "Mesaj Gönder" ile sohbet başlatabilirsiniz.</div>
           ` : peers.map(peer => {
             const isActive = peer === selectedDmPeer;
             const unread = appData.dmMessages.filter(m => m.to === me && m.from === peer && !m.read).length;
@@ -1728,16 +1748,30 @@ function renderTournamentCenterPage(el) {
                   </div>
                 `;
               }
+              const sRoster = getTournamentRoster(tour, tm.id);
+              const sSubs = sRoster.substitutions;
               return `
-                <div class="theme-elevated rounded-xl px-4 py-3 flex items-center justify-between border accent-border">
-                  <div class="flex items-center gap-3">
-                    <span class="w-16 text-xs font-black accent-text">Slot #${String(slotNo).padStart(2, '0')}</span>
-                    <div>
-                      <strong class="text-sm">${escapeHtml(tm.name)}</strong>
-                      <span class="text-xs muted-text ml-1.5">[${escapeHtml(tm.tag)}]</span>
+                <div class="theme-elevated rounded-xl px-4 py-3 border accent-border space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <span class="w-16 text-xs font-black accent-text">Slot #${String(slotNo).padStart(2, '0')}</span>
+                      <div>
+                        <strong class="text-sm">${escapeHtml(tm.name)}</strong>
+                        <span class="text-xs muted-text ml-1.5">[${escapeHtml(tm.tag)}]</span>
+                      </div>
                     </div>
+                    <span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400">✓ Onaylı</span>
                   </div>
-                  <span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400">✓ Onaylı</span>
+                  ${sSubs.length > 0 ? `<div class="flex flex-wrap gap-2 pl-0 sm:pl-16">${sSubs.map(s => {
+                    const out = sRoster.main[s.outMain] || {};
+                    const inp = sRoster.sub[s.inSub] || {};
+                    return `<span class="flex items-center gap-1 text-[11px]">
+                      <span class="px-2 py-0.5 rounded-md font-mono ${s.done ? '' : 'blink-red'}" style="background: rgba(244,63,94,0.15); color:#fb7185;">− ${escapeHtml(out.nick || out.id || '-')}</span>
+                      <span class="px-2 py-0.5 rounded-md font-mono ${s.done ? '' : 'blink-green'}" style="background: rgba(16,185,129,0.15); color:#34d399;">+ ${escapeHtml(inp.nick || inp.id || '-')}</span>
+                      ${s.done ? '<span class="text-emerald-400 font-black">✓</span>' : ''}
+                    </span>`;
+                  }).join('')}</div>` : ''}
+                  ${isOrg && sSubs.some(s => !s.done) ? `<div class="flex flex-wrap gap-1.5 pl-0 sm:pl-16">${sSubs.map((s, idx) => s.done ? '' : `<button onclick="markSubstitutionDone('${tour.id}', '${tm.id}', ${idx})" class="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-extrabold text-[11px]">Onayla: ${escapeHtml((sRoster.main[s.outMain] || {}).nick || '-')} → ${escapeHtml((sRoster.sub[s.inSub] || {}).nick || '-')}</button>`).join('')}</div>` : ''}
                 </div>
               `;
             }).join('')}
@@ -1954,10 +1988,7 @@ function renderOrganizerPage(el) {
               <select name="map" class="theme-input w-full rounded-xl px-3.5 py-2.5">
                 <option value="Erangel">Erangel</option>
                 <option value="Miramar">Miramar</option>
-                <option value="Sanhok">Sanhok</option>
                 <option value="Rondo">Rondo</option>
-                <option value="Vikendi">Vikendi</option>
-                <option value="Livik">Livik</option>
               </select>
               <p class="text-[10px] muted-text mt-1">Her maça ayrı harita turnuva açıldıktan sonra aşağıdan seçilir.</p>
             </div>
@@ -2076,12 +2107,16 @@ function renderOrganizerPage(el) {
             <div>
               <h3 class="font-extrabold text-sm mb-2">🔁 Yedek Değişim Talepleri</h3>
               ${(() => {
-                const reqs = (activeTour.joinedTeams || []).map(tid => ({ tid, r: getTournamentRoster(activeTour, tid) })).filter(x => x.r.subOut !== null && x.r.subIn !== null);
-                if (reqs.length === 0) return `<div class="theme-elevated rounded-xl p-4 text-xs muted-text">Henüz değişim talebi yok.</div>`;
-                return `<div class="space-y-2">${reqs.map(({ tid, r }) => {
+                const rows = [];
+                (activeTour.joinedTeams || []).forEach(tid => {
+                  const r = getTournamentRoster(activeTour, tid);
+                  r.substitutions.forEach((s, idx) => rows.push({ tid, r, s, idx }));
+                });
+                if (rows.length === 0) return `<div class="theme-elevated rounded-xl p-4 text-xs muted-text">Henüz değişim talebi yok.</div>`;
+                return `<div class="space-y-2">${rows.map(({ tid, r, s, idx }) => {
                   const tm = appData.teams.find(x => x.id === tid);
-                  const out = r.main[r.subOut] || {};
-                  const inp = r.sub[r.subIn] || {};
+                  const out = r.main[s.outMain] || {};
+                  const inp = r.sub[s.inSub] || {};
                   return `
                     <div class="theme-elevated rounded-xl p-3 text-xs flex flex-wrap items-center justify-between gap-2">
                       <div>
@@ -2092,9 +2127,9 @@ function renderOrganizerPage(el) {
                           <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 font-mono">GİREN: ${escapeHtml(inp.nick || '-')} · ${escapeHtml(inp.id || '-')}</span>
                         </div>
                       </div>
-                      ${r.subDone
+                      ${s.done
                         ? `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400">✓ Uygulandı</span>`
-                        : `<button onclick="markSubstitutionDone('${activeTour.id}', '${tid}')" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-extrabold">Uygulandı</button>`}
+                        : `<button onclick="markSubstitutionDone('${activeTour.id}', '${tid}', ${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-extrabold">Uygulandı</button>`}
                     </div>
                   `;
                 }).join('')}</div>`;
@@ -2114,7 +2149,7 @@ function renderOrganizerPage(el) {
             <div class="flex flex-wrap items-center gap-2 mb-3 text-xs theme-elevated rounded-xl px-3.5 py-2.5">
               <span class="muted-text font-bold">🗺️ Maç #${selectedOrganizerMatch} Haritası:</span>
               <select onchange="setMatchMap('${activeTour.id}', ${selectedOrganizerMatch}, this.value)" class="theme-input rounded-lg px-2.5 py-1.5">
-                ${['Erangel', 'Miramar', 'Sanhok', 'Rondo', 'Vikendi', 'Livik'].map(mp => `<option value="${mp}" ${((activeTour.maps && activeTour.maps[selectedOrganizerMatch]) || activeTour.map) === mp ? 'selected' : ''}>${mp}</option>`).join('')}
+                ${['Erangel', 'Miramar', 'Rondo'].map(mp => `<option value="${mp}" ${((activeTour.maps && activeTour.maps[selectedOrganizerMatch]) || activeTour.map) === mp ? 'selected' : ''}>${mp}</option>`).join('')}
               </select>
             </div>
             ${(activeTour.joinedTeams || []).length === 0 ? `
@@ -2294,26 +2329,30 @@ async function requestSubstitution(e, tourId, teamId) {
     showToast('Çıkan ve giren oyuncuyu seçin.');
     return;
   }
+  const outIdx = Number(out), inIdx = Number(inp);
   await saveState(draft => {
     const tr = draft.tournaments.find(t => t.id === tourId);
     if (!tr) return;
     tr.rosters = tr.rosters || {};
     tr.rosters[teamId] = tr.rosters[teamId] || {};
-    tr.rosters[teamId].subOut = Number(out);
-    tr.rosters[teamId].subIn = Number(inp);
-    tr.rosters[teamId].subDone = false;
+    const subs = Array.isArray(tr.rosters[teamId].substitutions) ? tr.rosters[teamId].substitutions : [];
+    // Ayni yedek veya ayni ana oyuncu zaten kullanildiysa tekrar ekleme (kilit)
+    if (subs.some(s => s.inSub === inIdx) || subs.some(s => s.outMain === outIdx)) return;
+    subs.push({ outMain: outIdx, inSub: inIdx, done: false });
+    tr.rosters[teamId].substitutions = subs;
     const tm = draft.teams.find(x => x.id === teamId);
     pushSystemMessage(draft, tr.creator, `"${tr.title}" — "${tm ? tm.name : teamId}" takımı yedek değişimi talep etti.`);
   });
   showToast('Yedek değişim talebi organizatöre iletildi.');
 }
 
-async function markSubstitutionDone(tourId, teamId) {
+async function markSubstitutionDone(tourId, teamId, idx) {
   await saveState(draft => {
     const tr = draft.tournaments.find(t => t.id === tourId);
-    if (tr && tr.rosters && tr.rosters[teamId]) tr.rosters[teamId].subDone = true;
+    const subs = tr && tr.rosters && tr.rosters[teamId] && tr.rosters[teamId].substitutions;
+    if (subs && subs[idx]) subs[idx].done = true;
   });
-  showToast('Değişim tamamlandı olarak işaretlendi.');
+  showToast('Yedek değişimi onaylandı.');
 }
 
 async function startTournamentLive(tourId) {
@@ -2505,31 +2544,48 @@ function renderTeamPage(el) {
                   </div>
                   ${!locked ? `<button type="submit" class="btn-accent px-5 py-2 rounded-xl text-xs">Kadroyu Kaydet</button>` : ''}
                 </form>
-                ${isLive && isFriendAdd ? `
+                ${isLive && isFriendAdd ? (() => {
+                  const subsList = roster.substitutions;
+                  const usedMains = subsList.map(s => s.outMain);
+                  const usedSubs = subsList.map(s => s.inSub);
+                  const availMains = [0, 1, 2, 3].filter(i => !usedMains.includes(i));
+                  const availSubs = [0, 1].filter(i => !usedSubs.includes(i));
+                  return `
                   <div class="rounded-xl p-3 border" style="border-color: var(--border); background: var(--bg-main);">
                     <div class="font-extrabold text-xs mb-2">🔁 Yedek Değişimi (Maç Arası)</div>
-                    <form onsubmit="requestSubstitution(event, '${tr.id}', '${myTeam.id}')" class="space-y-2 text-xs">
+                    ${subsList.length > 0 ? `<div class="space-y-1.5 mb-2">${subsList.map(s => `
+                      <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span class="px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-400 font-mono">ÇIKAN: ${escapeHtml(roster.main[s.outMain]?.nick || roster.main[s.outMain]?.id || '-')}</span>
+                        <span>→</span>
+                        <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 font-mono">GİREN: ${escapeHtml(roster.sub[s.inSub]?.nick || roster.sub[s.inSub]?.id || '-')}</span>
+                        <span class="px-2 py-0.5 rounded-md ${s.done ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'} font-bold">${s.done ? '✓ Onaylandı (kilitli)' : '⏳ Onay bekliyor (kilitli)'}</span>
+                      </div>
+                    `).join('')}</div>` : ''}
+                    ${availSubs.length === 0
+                      ? `<p class="text-[11px] muted-text">Tüm yedekler kullanıldı. Başka değişim yapılamaz.</p>`
+                      : `<form onsubmit="requestSubstitution(event, '${tr.id}', '${myTeam.id}')" class="space-y-2 text-xs">
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label class="block muted-text mb-1">Çıkan (Ana)</label>
                           <select name="subOut" class="theme-input w-full rounded-lg px-2.5 py-1.5" required>
                             <option value="">— Seç —</option>
-                            ${roster.main.map((p, i) => `<option value="${i}" ${roster.subOut === i ? 'selected' : ''}>Ana ${i + 1} — ${escapeHtml(p.nick || p.id || '-')}</option>`).join('')}
+                            ${availMains.map(i => `<option value="${i}">Ana ${i + 1} — ${escapeHtml(roster.main[i].nick || roster.main[i].id || '-')}</option>`).join('')}
                           </select>
                         </div>
                         <div>
                           <label class="block muted-text mb-1">Giren (Yedek)</label>
                           <select name="subIn" class="theme-input w-full rounded-lg px-2.5 py-1.5" required>
                             <option value="">— Seç —</option>
-                            ${roster.sub.map((p, i) => `<option value="${i}" ${roster.subIn === i ? 'selected' : ''}>Yedek ${i + 1} — ${escapeHtml(p.nick || p.id || '-')}</option>`).join('')}
+                            ${availSubs.map(i => `<option value="${i}">Yedek ${i + 1} — ${escapeHtml(roster.sub[i].nick || roster.sub[i].id || '-')}</option>`).join('')}
                           </select>
                         </div>
                       </div>
                       <button type="submit" class="btn-accent px-4 py-2 rounded-xl text-xs">Değişim Talep Et</button>
-                      ${(roster.subOut !== null && roster.subIn !== null) ? `<p class="text-[11px] ${roster.subDone ? 'text-emerald-400' : 'text-amber-300'}">${roster.subDone ? '✓ Organizatör değişimi uyguladı.' : '⏳ Talep organizatöre iletildi.'}</p>` : ''}
-                    </form>
+                      <p class="text-[10px] muted-text">Seçtiğin yedek, talep sonrası kilitlenir ve değiştirilemez.</p>
+                    </form>`}
                   </div>
-                ` : ''}
+                  `;
+                })() : ''}
               </div>
             `;
           }).join('');
