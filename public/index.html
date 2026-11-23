@@ -2349,20 +2349,39 @@ function copyObsLink(tourId) {
 async function saveTournamentRoster(e, tourId, teamId) {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const newMain = [0, 1, 2, 3].map(i => ({
+    nick: String(fd.get(`m_nick_${i}`) || '').trim(),
+    id: String(fd.get(`m_id_${i}`) || '').trim()
+  }));
+  const newSub = [0, 1].map(i => ({
+    nick: String(fd.get(`s_nick_${i}`) || '').trim(),
+    id: String(fd.get(`s_id_${i}`) || '').trim()
+  }));
   await saveState(draft => {
     const tr = draft.tournaments.find(t => t.id === tourId);
     if (!tr) return;
     if (isRosterLocked(tr) || tr.status === 'completed' || tr.status === 'live') return;
     tr.rosters = tr.rosters || {};
+    const prev = tr.rosters[teamId] || {};
+    const prevMain = Array.isArray(prev.main) ? prev.main : [];
+    const prevSub = Array.isArray(prev.sub) ? prev.sub : [];
+    // Onceki ID ile farkli mi? Degisen ID'leri organizatore bildir.
+    const changes = [];
+    newMain.forEach((p, i) => {
+      const old = prevMain[i] || {};
+      if (old.id && old.id !== p.id) changes.push(`Ana ${i + 1}: ${old.id} → ${p.id || '(boş)'}`);
+    });
+    newSub.forEach((p, i) => {
+      const old = prevSub[i] || {};
+      if (old.id && old.id !== p.id) changes.push(`Yedek ${i + 1}: ${old.id} → ${p.id || '(boş)'}`);
+    });
     tr.rosters[teamId] = tr.rosters[teamId] || {};
-    tr.rosters[teamId].main = [0, 1, 2, 3].map(i => ({
-      nick: String(fd.get(`m_nick_${i}`) || '').trim(),
-      id: String(fd.get(`m_id_${i}`) || '').trim()
-    }));
-    tr.rosters[teamId].sub = [0, 1].map(i => ({
-      nick: String(fd.get(`s_nick_${i}`) || '').trim(),
-      id: String(fd.get(`s_id_${i}`) || '').trim()
-    }));
+    tr.rosters[teamId].main = newMain;
+    tr.rosters[teamId].sub = newSub;
+    if (changes.length > 0) {
+      const tm = draft.teams.find(x => x.id === teamId);
+      pushSystemMessage(draft, tr.creator, `"${tr.title}" — "${tm ? tm.name : teamId}" takımı kadro ID değişikliği yaptı → ${changes.join(', ')}`);
+    }
   });
   showToast('Kadro kaydedildi.');
 }
